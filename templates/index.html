@@ -1,594 +1,2145 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>小学者 Little Scholar</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;700&family=Fredoka+One&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    :root {
-      --red: #C0392B; --red-light: #E74C3C; --gold: #F0A500; --gold-light: #F7C948;
-      --cream: #FFF8F0; --ink: #2C1A0E; --ink-light: #5C3D2E;
-      --jade: #2ECC9A; --jade-dark: #1A9970; --sky: #5BC8F5; --bg: #FFF3E8;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Noto Sans SC', sans-serif; background: var(--bg); min-height: 100vh; }
-    .app { max-width: 900px; margin: 0 auto; padding: 16px; }
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 20px; border-bottom: 3px solid var(--red); margin-bottom: 24px; flex-wrap: wrap; gap: 10px; }
-    .logo { font-family: 'Ma Shan Zheng', cursive; font-size: 2rem; color: var(--red); display: flex; align-items: center; gap: 8px; }
-    .nav-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-    .nav-tab { padding: 8px 14px; border-radius: 20px; border: 2px solid var(--red); background: transparent; color: var(--red); font-family: 'Fredoka One', cursive; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
-    .nav-tab:hover, .nav-tab.active { background: var(--red); color: white; }
-    .count-badge { background: var(--gold); color: var(--ink); border-radius: 10px; padding: 1px 6px; font-size: 0.75rem; margin-left: 4px; }
-    .upload-area { border: 3px dashed var(--gold); border-radius: 24px; padding: 60px 40px; text-align: center; background: rgba(240,165,0,0.05); cursor: pointer; transition: all 0.3s; }
-    .upload-area:hover, .upload-area.drag-over { background: rgba(240,165,0,0.12); border-color: var(--red); transform: scale(1.01); }
-    .upload-icon { font-size: 4rem; margin-bottom: 16px; display: block; animation: float 3s ease-in-out infinite; }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-    .upload-title { font-family: 'Fredoka One', cursive; font-size: 1.6rem; color: var(--ink); margin-bottom: 8px; }
-    .upload-sub { color: var(--ink-light); font-size: 0.95rem; }
-    .welcome-banner { background: linear-gradient(135deg,#C0392B,#8B1A1A); border-radius: 20px; padding: 24px 28px; color: white; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; position: relative; overflow: hidden; }
-    .welcome-banner::before { content:'福'; position:absolute; right:20px; top:-10px; font-family:'Ma Shan Zheng',cursive; font-size:8rem; opacity:0.1; color:var(--gold); pointer-events:none; }
-    .btn { display:inline-flex; align-items:center; gap:6px; padding:10px 20px; border-radius:20px; border:none; font-family:'Fredoka One',cursive; font-size:1rem; cursor:pointer; transition:all 0.2s; }
-    .btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
-    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-    .btn-red { background:var(--red); color:white; }
-    .btn-gold { background:var(--gold); color:var(--ink); }
-    .btn-jade { background:var(--jade); color:white; }
-    .btn-outline { background:white; color:var(--red); border:2px solid var(--red); }
-    .btn-sm { padding:6px 14px; font-size:0.85rem; }
-    .loading-card { background:white; border-radius:20px; padding:40px; text-align:center; box-shadow:0 8px 30px rgba(192,57,43,0.12); }
-    .loading-chars { display:flex; justify-content:center; gap:12px; margin:24px 0; flex-wrap:wrap; }
-    .loading-char { font-family:'Ma Shan Zheng',cursive; font-size:2.5rem; color:var(--red); animation:bounce 1.2s ease-in-out infinite; }
-    @keyframes bounce { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-16px) rotate(5deg)} }
-    .article-text { background:white; border-radius:20px; padding:28px; box-shadow:0 4px 20px rgba(0,0,0,0.07); line-height:3.2; display:flex; flex-wrap:wrap; gap:4px; align-items:flex-start; }
-    .char-block { display:inline-flex; flex-direction:column; align-items:center; cursor:pointer; border-radius:8px; padding:4px 3px 2px; transition:all 0.2s; min-width:36px; }
-    .char-block:hover { background:rgba(240,165,0,0.15); transform:scale(1.08); }
-    .char-block.unknown { background:rgba(192,57,43,0.12); border:2px solid var(--red); }
-    .char-block.unknown .char-zh { color:var(--red); }
-    .char-block.punct { cursor:default; min-width:auto; padding:4px 1px; }
-    .char-block.punct:hover { background:none; transform:none; }
-    .char-pinyin { font-size:0.72rem; color:var(--ink-light); min-height:14px; line-height:1; margin-bottom:1px; }
-    .char-zh { font-family:'Ma Shan Zheng',cursive; font-size:1.6rem; line-height:1; color:var(--ink); }
-    .unknown-dot { width:6px; height:6px; background:var(--red); border-radius:50%; margin-top:2px; }
-    .reading-hint { background:var(--gold-light); border-radius:12px; padding:10px 16px; font-size:0.88rem; color:var(--ink); margin-bottom:20px; display:flex; align-items:center; gap:8px; }
-    .char-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:12px; margin-top:16px; }
-    .char-card { background:white; border-radius:16px; padding:16px 12px; text-align:center; box-shadow:0 3px 12px rgba(0,0,0,0.08); border:2px solid transparent; cursor:pointer; transition:all 0.2s; position:relative; }
-    .char-card:hover { border-color:var(--gold); transform:translateY(-3px); }
-    .big-char { font-family:'Ma Shan Zheng',cursive; font-size:2.8rem; color:var(--ink); line-height:1; margin-bottom:6px; }
-    .section-title { font-family:'Fredoka One',cursive; font-size:1.3rem; color:var(--ink); display:flex; align-items:center; gap:8px; }
-    .quiz-card { background:white; border-radius:28px; padding:40px 32px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.1); margin-bottom:24px; min-height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-    .quiz-card::before { content:''; position:absolute; top:0; left:0; right:0; height:6px; background:linear-gradient(90deg,var(--red),var(--gold),var(--jade)); }
-    .quiz-char { font-family:'Ma Shan Zheng',cursive; font-size:6rem; color:var(--ink); line-height:1; }
-    .quiz-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
-    .option-btn { padding:14px 10px; border-radius:16px; border:2px solid #e8ddd5; background:white; font-family:'Noto Sans SC',sans-serif; font-size:1rem; cursor:pointer; transition:all 0.2s; }
-    .option-btn:hover:not(:disabled) { border-color:var(--gold); background:rgba(240,165,0,0.08); }
-    .option-btn.correct { background:rgba(46,204,154,0.15); border-color:var(--jade); color:var(--jade-dark); }
-    .option-btn.wrong { background:rgba(231,76,60,0.12); border-color:var(--red-light); color:var(--red); }
-    .progress-dot { width:14px; height:14px; border-radius:50%; background:#e0d6cc; transition:all 0.3s; }
-    .progress-dot.correct { background:var(--jade); }
-    .progress-dot.wrong { background:var(--red-light); }
-    .progress-dot.current { background:var(--gold); transform:scale(1.3); }
-    .writing-canvas { border-radius:16px; border:3px solid var(--gold); cursor:crosshair; display:block; touch-action:none; background:white; }
-    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--ink); color:white; padding:12px 24px; border-radius:20px; font-family:'Fredoka One',cursive; font-size:0.95rem; z-index:9999; transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); white-space:nowrap; }
-    .toast.show { transform:translateX(-50%) translateY(0); }
-    .char-tooltip { position:fixed; background:var(--ink); color:white; border-radius:12px; padding:10px 14px; font-size:0.85rem; pointer-events:none; z-index:1000; max-width:200px; box-shadow:0 4px 16px rgba(0,0,0,0.3); transform:translateX(-50%) translateY(-110%); }
-    .empty-state { text-align:center; padding:60px 20px; color:var(--ink-light); }
-    @media(max-width:500px){.char-zh{font-size:1.3rem}.quiz-char{font-size:4rem}.nav-tab{padding:6px 10px;font-size:0.8rem}}
-  </style>
-</head>
-<body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useRef, useCallback, useEffect } = React;
-
-const STORAGE = { unknown: "ls-unknown", mastered: "ls-mastered" };
-const shuffle = a => [...a].sort(() => Math.random() - 0.5);
-const isChinese = ch => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
-const isPunct = ch => /[\uff0c\u3002\uff01\uff1f\u3001\uff1b\uff1a\u201c\u201d\u2018\u2019\u300c\u300d\u3010\u3011\uff08\uff09\u2026\u2014\u00b7.,!?;:()/\[\]]/.test(ch);
-
-// ── API helpers ────────────────────────────────────────────────────────────────
-async function apiOcr(base64) {
-  const res = await fetch("/api/ocr", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image_base64: base64 })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "OCR failed");
-  return data.text;
-}
-
-async function apiLookup(characters) {
-  const res = await fetch("/api/lookup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ characters })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Lookup failed");
-  return data.lookup; // { "你": { pinyin: "nǐ", meaning: "you" }, ... }
-}
-
-// ── Image preprocessing ────────────────────────────────────────────────────────
-function preprocessImage(dataUrl) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 2000;
-      let { width: w, height: h } = img;
-      const scale = MAX / Math.max(w, h);
-      if (scale < 1 || Math.max(w,h) < 800) {
-        w = Math.round(w * (scale < 1 ? scale : Math.min(2, 800/Math.max(w,h))));
-        h = Math.round(h * (scale < 1 ? scale : Math.min(2, 800/Math.max(w,h))));
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小学者 Little Scholar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;700&family=Fredoka+One&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      :root {
+        --red: #c0392b;
+        --red-light: #e74c3c;
+        --gold: #f0a500;
+        --gold-light: #f7c948;
+        --cream: #fff8f0;
+        --ink: #2c1a0e;
+        --ink-light: #5c3d2e;
+        --jade: #2ecc9a;
+        --jade-dark: #1a9970;
+        --sky: #5bc8f5;
+        --bg: #fff3e8;
       }
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, 0, 0, w, h);
-      const id = ctx.getImageData(0, 0, w, h);
-      const d = id.data;
-      // Grayscale + contrast boost
-      for (let i = 0; i < d.length; i += 4) {
-        const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-        const v = Math.min(255, Math.max(0, ((g-128)*1.5)+128));
-        d[i] = d[i+1] = d[i+2] = v;
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-      ctx.putImageData(id, 0, 0);
-      const out = canvas.toDataURL("image/png");
-      resolve(out.split(",")[1]);
-    };
-    img.src = dataUrl;
-  });
-}
-
-// ── Main App ───────────────────────────────────────────────────────────────────
-function App() {
-  const [screen, setScreen] = useState("home");
-  const [parsedArticle, setParsedArticle] = useState(null);
-  const [imageDataUrl, setImageDataUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState("");
-  const [unknownChars, setUnknownChars] = useState(() => { try { return JSON.parse(localStorage.getItem(STORAGE.unknown)||"{}"); } catch { return {}; } });
-  const [masteredChars, setMasteredChars] = useState(() => { try { return JSON.parse(localStorage.getItem(STORAGE.mastered)||"{}"); } catch { return {}; } });
-  const [quizState, setQuizState] = useState(null);
-  const [toast, setToast] = useState({ msg:"", show:false });
-  const [tooltip, setTooltip] = useState({ visible:false, char:null, x:0, y:0 });
-  const canvasRef = useRef();
-  const isDrawing = useRef(false);
-  const lastPos = useRef(null);
-  const fileRef = useRef();
-
-  useEffect(() => { localStorage.setItem(STORAGE.unknown, JSON.stringify(unknownChars)); }, [unknownChars]);
-  useEffect(() => { localStorage.setItem(STORAGE.mastered, JSON.stringify(masteredChars)); }, [masteredChars]);
-
-  const showToast = msg => { setToast({msg,show:true}); setTimeout(()=>setToast(t=>({...t,show:false})),2200); };
-  const unknownCount = Object.keys(unknownChars).length;
-
-  // ── File handling ────────────────────────────────────────────────────────────
-  const handleFile = async file => {
-    if (!file) return;
-    setLoading(true);
-    const reader = new FileReader();
-    reader.onload = async e => {
-      const dataUrl = e.target.result;
-      setImageDataUrl(dataUrl);
-      try {
-        setLoadingMsg("Enhancing image… ✨");
-        const base64 = await preprocessImage(dataUrl);
-
-        setLoadingMsg("Reading with Google Vision… 📖");
-        const articleText = await apiOcr(base64);
-
-        const unique = [...new Set(articleText.split("").filter(isChinese))];
-        const lookup = {};
-        const BATCH = 50;
-        for (let i = 0; i < unique.length; i += BATCH) {
-          setLoadingMsg(`Looking up pinyin… ${Math.min(i+BATCH,unique.length)}/${unique.length} 🔍`);
-          const batch = unique.slice(i, i+BATCH);
-          const result = await apiLookup(batch);
-          Object.assign(lookup, result);
+      body {
+        font-family: "Noto Sans SC", sans-serif;
+        background: var(--bg);
+        min-height: 100vh;
+      }
+      .app {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0 20px;
+        border-bottom: 3px solid var(--red);
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .logo {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 2rem;
+        color: var(--red);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .nav-tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .nav-tab {
+        padding: 8px 14px;
+        border-radius: 20px;
+        border: 2px solid var(--red);
+        background: transparent;
+        color: var(--red);
+        font-family: "Fredoka One", cursive;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .nav-tab:hover,
+      .nav-tab.active {
+        background: var(--red);
+        color: white;
+      }
+      .count-badge {
+        background: var(--gold);
+        color: var(--ink);
+        border-radius: 10px;
+        padding: 1px 6px;
+        font-size: 0.75rem;
+        margin-left: 4px;
+      }
+      .upload-area {
+        border: 3px dashed var(--gold);
+        border-radius: 24px;
+        padding: 60px 40px;
+        text-align: center;
+        background: rgba(240, 165, 0, 0.05);
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .upload-area:hover,
+      .upload-area.drag-over {
+        background: rgba(240, 165, 0, 0.12);
+        border-color: var(--red);
+        transform: scale(1.01);
+      }
+      .upload-icon {
+        font-size: 4rem;
+        margin-bottom: 16px;
+        display: block;
+        animation: float 3s ease-in-out infinite;
+      }
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
         }
-
-        const arr = [];
-        for (const ch of articleText) {
-          if (ch==="\n") arr.push({char:"\n",type:"break"});
-          else if (" \t\r".includes(ch)) continue;
-          else if (isPunct(ch)) arr.push({char:ch,type:"punct"});
-          else if (isChinese(ch)) { const info=lookup[ch]||{}; arr.push({char:ch,pinyin:info.pinyin||"?",meaning:info.meaning||""}); }
-          else arr.push({char:ch,type:"latin"});
+        50% {
+          transform: translateY(-10px);
         }
-        setParsedArticle(arr);
-        setScreen("reading");
-      } catch(err) {
-        console.error(err);
-        showToast("⚠️ " + (err.message||"Something went wrong"));
-      } finally { setLoading(false); }
-    };
-    reader.readAsDataURL(file);
-  };
+      }
+      .upload-title {
+        font-family: "Fredoka One", cursive;
+        font-size: 1.6rem;
+        color: var(--ink);
+        margin-bottom: 8px;
+      }
+      .upload-sub {
+        color: var(--ink-light);
+        font-size: 0.95rem;
+      }
+      .welcome-banner {
+        background: linear-gradient(135deg, #c0392b, #8b1a1a);
+        border-radius: 20px;
+        padding: 24px 28px;
+        color: white;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+      .welcome-banner::before {
+        content: "福";
+        position: absolute;
+        right: 20px;
+        top: -10px;
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 8rem;
+        opacity: 0.1;
+        color: var(--gold);
+        pointer-events: none;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        border-radius: 20px;
+        border: none;
+        font-family: "Fredoka One", cursive;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-red {
+        background: var(--red);
+        color: white;
+      }
+      .btn-gold {
+        background: var(--gold);
+        color: var(--ink);
+      }
+      .btn-jade {
+        background: var(--jade);
+        color: white;
+      }
+      .btn-outline {
+        background: white;
+        color: var(--red);
+        border: 2px solid var(--red);
+      }
+      .btn-sm {
+        padding: 6px 14px;
+        font-size: 0.85rem;
+      }
+      .loading-card {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(192, 57, 43, 0.12);
+      }
+      .loading-chars {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 24px 0;
+        flex-wrap: wrap;
+      }
+      .loading-char {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 2.5rem;
+        color: var(--red);
+        animation: bounce 1.2s ease-in-out infinite;
+      }
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        50% {
+          transform: translateY(-16px) rotate(5deg);
+        }
+      }
+      .article-text {
+        background: white;
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+        line-height: 3.2;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: flex-start;
+      }
+      .char-block {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        border-radius: 8px;
+        padding: 4px 3px 2px;
+        transition: all 0.2s;
+        min-width: 36px;
+      }
+      .char-block:hover {
+        background: rgba(240, 165, 0, 0.15);
+        transform: scale(1.08);
+      }
+      .char-block.unknown {
+        background: rgba(192, 57, 43, 0.12);
+        border: 2px solid var(--red);
+      }
+      .char-block.unknown .char-zh {
+        color: var(--red);
+      }
+      .char-block.punct {
+        cursor: default;
+        min-width: auto;
+        padding: 4px 1px;
+      }
+      .char-block.punct:hover {
+        background: none;
+        transform: none;
+      }
+      .char-pinyin {
+        font-size: 0.72rem;
+        color: var(--ink-light);
+        min-height: 14px;
+        line-height: 1;
+        margin-bottom: 1px;
+      }
+      .char-zh {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 1.6rem;
+        line-height: 1;
+        color: var(--ink);
+      }
+      .unknown-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--red);
+        border-radius: 50%;
+        margin-top: 2px;
+      }
+      .reading-hint {
+        background: var(--gold-light);
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-size: 0.88rem;
+        color: var(--ink);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .char-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .char-card {
+        background: white;
+        border-radius: 16px;
+        padding: 16px 12px;
+        text-align: center;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .char-card:hover {
+        border-color: var(--gold);
+        transform: translateY(-3px);
+      }
+      .big-char {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 2.8rem;
+        color: var(--ink);
+        line-height: 1;
+        margin-bottom: 6px;
+      }
+      .section-title {
+        font-family: "Fredoka One", cursive;
+        font-size: 1.3rem;
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .quiz-card {
+        background: white;
+        border-radius: 28px;
+        padding: 40px 32px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        min-height: 260px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .quiz-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(
+          90deg,
+          var(--red),
+          var(--gold),
+          var(--jade)
+        );
+      }
+      .quiz-char {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 6rem;
+        color: var(--ink);
+        line-height: 1;
+      }
+      .quiz-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .option-btn {
+        padding: 14px 10px;
+        border-radius: 16px;
+        border: 2px solid #e8ddd5;
+        background: white;
+        font-family: "Noto Sans SC", sans-serif;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .option-btn:hover:not(:disabled) {
+        border-color: var(--gold);
+        background: rgba(240, 165, 0, 0.08);
+      }
+      .option-btn.correct {
+        background: rgba(46, 204, 154, 0.15);
+        border-color: var(--jade);
+        color: var(--jade-dark);
+      }
+      .option-btn.wrong {
+        background: rgba(231, 76, 60, 0.12);
+        border-color: var(--red-light);
+        color: var(--red);
+      }
+      .progress-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #e0d6cc;
+        transition: all 0.3s;
+      }
+      .progress-dot.correct {
+        background: var(--jade);
+      }
+      .progress-dot.wrong {
+        background: var(--red-light);
+      }
+      .progress-dot.current {
+        background: var(--gold);
+        transform: scale(1.3);
+      }
+      .writing-canvas {
+        border-radius: 16px;
+        border: 3px solid var(--gold);
+        cursor: crosshair;
+        display: block;
+        touch-action: none;
+        background: white;
+      }
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--ink);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 20px;
+        font-family: "Fredoka One", cursive;
+        font-size: 0.95rem;
+        z-index: 9999;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        white-space: nowrap;
+      }
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+      .char-tooltip {
+        position: fixed;
+        background: var(--ink);
+        color: white;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        pointer-events: none;
+        z-index: 1000;
+        max-width: 200px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        transform: translateX(-50%) translateY(-110%);
+      }
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--ink-light);
+      }
+      @media (max-width: 500px) {
+        .char-zh {
+          font-size: 1.3rem;
+        }
+        .quiz-char {
+          font-size: 4rem;
+        }
+        .nav-tab {
+          padding: 6px 10px;
+          font-size: 0.8rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useRef, useCallback, useEffect } = React;
 
-  const onDrop = useCallback(e => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file?.type.startsWith("image/")) handleFile(file);
-  }, []);
+      const STORAGE = { unknown: "ls-unknown", mastered: "ls-mastered" };
+      const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
+      const isChinese = (ch) => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
+      const isPunct = (ch) =>
+        /[\uff0c\u3002\uff01\uff1f\u3001\uff1b\uff1a\u201c\u201d\u2018\u2019\u300c\u300d\u3010\u3011\uff08\uff09\u2026\u2014\u00b7.,!?;:()/\[\]]/.test(
+          ch,
+        );
 
-  // ── Character management ─────────────────────────────────────────────────────
-  const toggleUnknown = item => {
-    if (!item.char || item.type==="punct" || item.type==="break") return;
-    setUnknownChars(prev => {
-      const next = {...prev};
-      if (next[item.char]) { delete next[item.char]; showToast(`✅ Removed "${item.char}"`); }
-      else { next[item.char]={char:item.char,pinyin:item.pinyin,meaning:item.meaning}; showToast(`📌 Added "${item.char}"`); }
-      return next;
-    });
-  };
-  const markMastered = key => {
-    setMasteredChars(prev=>({...prev,[key]:true}));
-    setUnknownChars(prev=>{const n={...prev};delete n[key];return n;});
-    showToast(`🌟 "${key}" mastered!`);
-  };
-  const removeChar = key => {
-    setUnknownChars(prev=>{const n={...prev};delete n[key];return n;});
-    setMasteredChars(prev=>{const n={...prev};delete n[key];return n;});
-  };
+      // ── API helpers ────────────────────────────────────────────────────────────────
+      async function apiOcr(base64) {
+        const res = await fetch("/api/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_base64: base64 }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "OCR failed");
+        return data.text;
+      }
 
-  // ── Quiz ─────────────────────────────────────────────────────────────────────
-  const startQuiz = type => {
-    const chars = Object.values(unknownChars);
-    if (chars.length < 2) { showToast("Add at least 2 characters first!"); return; }
-    const questions = shuffle(chars);
-    setQuizState({ type, questions, current:0, answers:[], options:buildOptions(questions[0],chars,type), revealed:false, selectedOption:null });
-  };
-  const buildOptions = (correct, all, type) => shuffle([correct,...shuffle(all.filter(c=>c.char!==correct.char)).slice(0,3)]);
-  const handleAnswer = chosen => {
-    const {questions,current,type,answers} = quizState;
-    const correct = questions[current];
-    const isCorrect = type==="pinyin" ? chosen.pinyin===correct.pinyin : chosen.meaning===correct.meaning;
-    const newAnswers = [...answers,{correct:isCorrect,char:correct.char}];
-    const next = current+1;
-    if (next>=questions.length) { setQuizState(p=>({...p,answers:newAnswers,done:true})); return; }
-    const all = Object.values(unknownChars);
-    setQuizState(p=>({...p,answers:newAnswers,current:next,options:buildOptions(questions[next],all,type),selectedOption:isCorrect?"correct":"wrong"}));
-    setTimeout(()=>setQuizState(p=>p?({...p,selectedOption:null}):p),700);
-  };
-  const handleFlashcard = knew => {
-    const {questions,current,answers} = quizState;
-    const newAnswers = [...answers,{correct:knew,char:questions[current].char}];
-    const next = current+1;
-    if (next>=questions.length) { setQuizState(p=>({...p,answers:newAnswers,done:true})); return; }
-    clearCanvas();
-    setQuizState(p=>({...p,answers:newAnswers,current:next,revealed:false}));
-  };
+      async function apiLookup(characters) {
+        const res = await fetch("/api/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ characters }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Lookup failed");
+        return data.lookup; // { "你": { pinyin: "nǐ", meaning: "you" }, ... }
+      }
 
-  // ── Canvas ────────────────────────────────────────────────────────────────────
-  const getPos = (e,canvas) => {
-    const r=canvas.getBoundingClientRect();
-    const s=e.touches?e.touches[0]:e;
-    return {x:(s.clientX-r.left)*(canvas.width/r.width),y:(s.clientY-r.top)*(canvas.height/r.height)};
-  };
-  const startDraw = e => { e.preventDefault(); const c=canvasRef.current; if(!c)return; isDrawing.current=true; const p=getPos(e,c); lastPos.current=p; const ctx=c.getContext("2d"); ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fillStyle="#2C1A0E"; ctx.fill(); };
-  const draw = e => { e.preventDefault(); if(!isDrawing.current)return; const c=canvasRef.current; if(!c)return; const ctx=c.getContext("2d"); const p=getPos(e,c); ctx.beginPath(); ctx.moveTo(lastPos.current.x,lastPos.current.y); ctx.lineTo(p.x,p.y); ctx.strokeStyle="#2C1A0E"; ctx.lineWidth=5; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke(); lastPos.current=p; };
-  const endDraw = e => { e.preventDefault(); isDrawing.current=false; lastPos.current=null; };
-  const clearCanvas = () => { const c=canvasRef.current; if(c) c.getContext("2d").clearRect(0,0,c.width,c.height); };
+      // ── Image preprocessing ────────────────────────────────────────────────────────
+      function preprocessImage(dataUrl) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const MAX = 2000;
+            let { width: w, height: h } = img;
+            const scale = MAX / Math.max(w, h);
+            if (scale < 1 || Math.max(w, h) < 800) {
+              w = Math.round(
+                w * (scale < 1 ? scale : Math.min(2, 800 / Math.max(w, h))),
+              );
+              h = Math.round(
+                h * (scale < 1 ? scale : Math.min(2, 800 / Math.max(w, h))),
+              );
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, w, h);
+            const id = ctx.getImageData(0, 0, w, h);
+            const d = id.data;
+            // Grayscale + contrast boost
+            for (let i = 0; i < d.length; i += 4) {
+              const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              const v = Math.min(255, Math.max(0, (g - 128) * 1.5 + 128));
+              d[i] = d[i + 1] = d[i + 2] = v;
+            }
+            ctx.putImageData(id, 0, 0);
+            const out = canvas.toDataURL("image/png");
+            resolve(out.split(",")[1]);
+          };
+          img.src = dataUrl;
+        });
+      }
 
-  const handleCharHover = (e, item) => {
-    if(!item.pinyin) return;
-    const r=e.currentTarget.getBoundingClientRect();
-    setTooltip({visible:true,char:item,x:r.left+r.width/2,y:r.top+window.scrollY});
-  };
+      // ── Main App ───────────────────────────────────────────────────────────────────
+      function App() {
+        const [screen, setScreen] = useState("home");
+        const [parsedArticle, setParsedArticle] = useState(null);
+        const [imageDataUrl, setImageDataUrl] = useState(null);
+        const [loading, setLoading] = useState(false);
+        const [loadingMsg, setLoadingMsg] = useState("");
+        const [unknownChars, setUnknownChars] = useState(() => {
+          try {
+            return JSON.parse(localStorage.getItem(STORAGE.unknown) || "{}");
+          } catch {
+            return {};
+          }
+        });
+        const [masteredChars, setMasteredChars] = useState(() => {
+          try {
+            return JSON.parse(localStorage.getItem(STORAGE.mastered) || "{}");
+          } catch {
+            return {};
+          }
+        });
+        const [masteredCharData, setMasteredCharData] = useState(() => {
+          try {
+            return JSON.parse(localStorage.getItem("ls-mastered-data") || "{}");
+          } catch {
+            return {};
+          }
+        });
+        const [quizState, setQuizState] = useState(null);
+        const [toast, setToast] = useState({ msg: "", show: false });
+        const [tooltip, setTooltip] = useState({
+          visible: false,
+          char: null,
+          x: 0,
+          y: 0,
+        });
+        const canvasRef = useRef();
+        const isDrawing = useRef(false);
+        const lastPos = useRef(null);
+        const fileRef = useRef();
 
-  // ── Screens ───────────────────────────────────────────────────────────────────
-  const renderHome = () => (
-    <div>
-      <div className="welcome-banner">
-        <span style={{fontSize:"3rem"}}>🎋</span>
-        <div>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.5rem",marginBottom:4}}>Hello, Little Scholar! 你好!</div>
-          <div style={{opacity:0.9,fontSize:"0.95rem"}}>Upload a photo of your Chinese article to start reading & learning!</div>
-        </div>
-        <div style={{marginLeft:"auto",fontSize:"1.5rem",opacity:0.7}}>🏮🏮</div>
-      </div>
-      <div className="upload-area" onDrop={onDrop} onDragOver={e=>e.preventDefault()} onClick={()=>fileRef.current?.click()}>
-        <span className="upload-icon">📸</span>
-        <div className="upload-title">Take a Photo or Upload an Image</div>
-        <div className="upload-sub">Drop your Chinese article here, or click to choose a file</div>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])} />
-      </div>
-      {unknownCount>0&&(
-        <div style={{marginTop:24,textAlign:"center"}}>
-          <p style={{color:"var(--ink-light)",marginBottom:12,fontFamily:"'Fredoka One',cursive"}}>You have {unknownCount} character{unknownCount>1?"s":""} in your study list 📚</p>
-          <button className="btn btn-jade" onClick={()=>setScreen("chars")}>📋 Review My Characters</button>
-        </div>
-      )}
-    </div>
-  );
+        useEffect(() => {
+          localStorage.setItem(STORAGE.unknown, JSON.stringify(unknownChars));
+        }, [unknownChars]);
+        useEffect(() => {
+          localStorage.setItem(STORAGE.mastered, JSON.stringify(masteredChars));
+        }, [masteredChars]);
+        useEffect(() => {
+          localStorage.setItem(
+            "ls-mastered-data",
+            JSON.stringify(masteredCharData),
+          );
+        }, [masteredCharData]);
 
-  const renderLoading = () => (
-    <div className="loading-card">
-      <div className="loading-chars">
-        {["学","习","中","文"].map((c,i)=><span key={i} className="loading-char" style={{animationDelay:`${i*0.15}s`,color:["var(--red)","var(--gold)","var(--jade)","var(--sky)"][i]}}>{c}</span>)}
-      </div>
-      <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.2rem",color:"var(--ink-light)"}}>{loadingMsg}</div>
-    </div>
-  );
+        const showToast = (msg) => {
+          setToast({ msg, show: true });
+          setTimeout(() => setToast((t) => ({ ...t, show: false })), 2200);
+        };
+        const unknownCount = Object.keys(unknownChars).length;
 
-  const renderReading = () => {
-    if(!parsedArticle) return null;
-    return (
-      <div>
-        {imageDataUrl&&<img src={imageDataUrl} style={{width:"100%",maxHeight:200,objectFit:"cover",borderRadius:16,marginBottom:20,border:"3px solid var(--gold)"}} alt="Article"/>}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
-          <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.3rem",color:"var(--ink)"}}>📖 Reading Mode</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <button className="btn btn-outline btn-sm" onClick={()=>{setImageDataUrl(null);setParsedArticle(null);setScreen("home");}}>📸 New Article</button>
-            {unknownCount>0&&<button className="btn btn-jade btn-sm" onClick={()=>setScreen("chars")}>📋 Study List ({unknownCount})</button>}
-          </div>
-        </div>
-        <div className="reading-hint">👆 <strong>Tap any character</strong> you don't know to add it to your study list. Hover to peek at the meaning!</div>
-        <div className="article-text">
-          {parsedArticle.map((item,idx)=>{
-            if(item.type==="break") return <div key={idx} style={{width:"100%",height:8}}/>;
-            if(item.type==="punct") return <span key={idx} className="char-block punct"><span className="char-pinyin"/><span className="char-zh" style={{fontSize:"1.4rem"}}>{item.char}</span></span>;
-            if(item.char===" ") return <span key={idx} style={{minWidth:8}}/>;
-            const isUnknown=!!unknownChars[item.char];
-            return (
-              <span key={idx} className={`char-block ${isUnknown?"unknown":""}`} onClick={()=>toggleUnknown(item)} onMouseEnter={e=>handleCharHover(e,item)} onMouseLeave={()=>setTooltip(t=>({...t,visible:false}))}>
-                <span className="char-pinyin">{item.pinyin||""}</span>
-                <span className="char-zh">{item.char}</span>
-                {isUnknown&&<span className="unknown-dot"/>}
-              </span>
-            );
-          })}
-        </div>
-        {unknownCount>0&&<div style={{marginTop:24,textAlign:"center"}}><button className="btn btn-red" onClick={()=>setScreen("quiz")}>🎮 Quiz Me on My {unknownCount} Characters!</button></div>}
-      </div>
-    );
-  };
+        // ── File handling ────────────────────────────────────────────────────────────
+        const handleFile = async (file) => {
+          if (!file) return;
+          setLoading(true);
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const dataUrl = e.target.result;
+            setImageDataUrl(dataUrl);
+            try {
+              setLoadingMsg("Enhancing image… ✨");
+              const base64 = await preprocessImage(dataUrl);
 
-  const renderChars = () => {
-    const chars=Object.values(unknownChars);
-    const mastered=Object.keys(masteredChars);
-    return (
-      <div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
-          <div className="section-title">📚 My Study List</div>
-          {chars.length>0&&<button className="btn btn-red btn-sm" onClick={()=>setScreen("quiz")}>🎮 Start Quiz</button>}
-        </div>
-        {chars.length===0?(
-          <div className="empty-state">
-            <span style={{fontSize:"4rem",display:"block",marginBottom:16}}>📭</span>
-            <h3 style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.4rem",color:"var(--ink)",marginBottom:8}}>No characters yet!</h3>
-            <p>Read an article and tap characters you don't know.</p>
-            <button className="btn btn-gold" style={{marginTop:20}} onClick={()=>setScreen("home")}>📸 Upload an Article</button>
-          </div>
-        ):(
-          <>
-            <p style={{color:"var(--ink-light)",marginBottom:16,fontSize:"0.9rem"}}>Tap a card to mark as mastered ⭐ • {mastered.length} mastered so far!</p>
-            <div className="char-grid">
-              {chars.map(item=>(
-                <div key={item.char} className="char-card" onClick={()=>markMastered(item.char)}>
-                  <button style={{position:"absolute",top:6,right:8,background:"none",border:"none",color:"#ccc",cursor:"pointer",fontSize:"1rem"}} onClick={e=>{e.stopPropagation();removeChar(item.char);}}>×</button>
-                  <div className="big-char">{item.char}</div>
-                  <div style={{fontSize:"0.85rem",color:"var(--ink-light)",marginBottom:4}}>{item.pinyin}</div>
-                  <div style={{fontSize:"0.78rem",color:"#888"}}>{item.meaning}</div>
+              setLoadingMsg("Reading with Google Vision… 📖");
+              const articleText = await apiOcr(base64);
+
+              const unique = [
+                ...new Set(articleText.split("").filter(isChinese)),
+              ];
+              const lookup = {};
+              const BATCH = 50;
+              for (let i = 0; i < unique.length; i += BATCH) {
+                setLoadingMsg(
+                  `Looking up pinyin… ${Math.min(i + BATCH, unique.length)}/${unique.length} 🔍`,
+                );
+                const batch = unique.slice(i, i + BATCH);
+                const result = await apiLookup(batch);
+                Object.assign(lookup, result);
+              }
+
+              const arr = [];
+              for (const ch of articleText) {
+                if (ch === "\n") arr.push({ char: "\n", type: "break" });
+                else if (" \t\r".includes(ch)) continue;
+                else if (isPunct(ch)) arr.push({ char: ch, type: "punct" });
+                else if (isChinese(ch)) {
+                  const info = lookup[ch] || {};
+                  arr.push({
+                    char: ch,
+                    pinyin: info.pinyin || "?",
+                    meaning: info.meaning || "",
+                  });
+                } else arr.push({ char: ch, type: "latin" });
+              }
+              setParsedArticle(arr);
+              setScreen("reading");
+            } catch (err) {
+              console.error(err);
+              showToast("⚠️ " + (err.message || "Something went wrong"));
+            } finally {
+              setLoading(false);
+            }
+          };
+          reader.readAsDataURL(file);
+        };
+
+        const onDrop = useCallback((e) => {
+          e.preventDefault();
+          const file = e.dataTransfer.files[0];
+          if (file?.type.startsWith("image/")) handleFile(file);
+        }, []);
+
+        // ── Character management ─────────────────────────────────────────────────────
+        const toggleUnknown = (item) => {
+          if (!item.char || item.type === "punct" || item.type === "break")
+            return;
+          setUnknownChars((prev) => {
+            const next = { ...prev };
+            if (next[item.char]) {
+              delete next[item.char];
+              showToast(`✅ Removed "${item.char}"`);
+            } else {
+              next[item.char] = {
+                char: item.char,
+                pinyin: item.pinyin,
+                meaning: item.meaning,
+              };
+              showToast(`📌 Added "${item.char}"`);
+            }
+            return next;
+          });
+        };
+        const markMastered = (key) => {
+          const charInfo = unknownChars[key] || {};
+          setMasteredChars((prev) => ({ ...prev, [key]: true }));
+          setMasteredCharData((prev) => ({ ...prev, [key]: charInfo }));
+          setUnknownChars((prev) => {
+            const n = { ...prev };
+            delete n[key];
+            return n;
+          });
+          showToast(
+            `🌟 "${key}" mastered — will appear occasionally in quizzes!`,
+          );
+        };
+        const removeChar = (key) => {
+          setUnknownChars((prev) => {
+            const n = { ...prev };
+            delete n[key];
+            return n;
+          });
+          setMasteredChars((prev) => {
+            const n = { ...prev };
+            delete n[key];
+            return n;
+          });
+        };
+
+        // ── Quiz (with spaced repetition for mastered chars) ─────────────────────────
+        const REVIEW_RATE = 0.25; // ~1 in 4 questions is a mastered review card
+
+        const buildQuestionList = () => {
+          const active = shuffle(Object.values(unknownChars));
+          const mastered = shuffle(
+            Object.keys(masteredChars).map((k) => ({
+              char: k,
+              ...(masteredCharData[k] || { pinyin: "?", meaning: "" }),
+              isReview: true,
+            })),
+          );
+          if (mastered.length === 0)
+            return active.map((c) => ({ ...c, isReview: false }));
+          const result = [];
+          let mi = 0;
+          for (let i = 0; i < active.length; i++) {
+            result.push({ ...active[i], isReview: false });
+            if (
+              (i + 1) % Math.round(1 / REVIEW_RATE) === 0 &&
+              mi < mastered.length
+            )
+              result.push({ ...mastered[mi++] });
+          }
+          return result;
+        };
+
+        const buildOptions = (correct, pool, type) =>
+          shuffle([
+            correct,
+            ...shuffle(pool.filter((c) => c.char !== correct.char)).slice(0, 3),
+          ]);
+
+        const startQuiz = (type) => {
+          const chars = Object.values(unknownChars);
+          if (chars.length < 2) {
+            showToast("Add at least 2 characters first!");
+            return;
+          }
+          const questions = buildQuestionList();
+          const pool = [
+            ...Object.values(unknownChars),
+            ...Object.keys(masteredChars).map((k) => ({
+              char: k,
+              ...(masteredCharData[k] || {}),
+            })),
+          ];
+          setQuizState({
+            type,
+            questions,
+            current: 0,
+            answers: [],
+            options: buildOptions(questions[0], pool, type),
+            revealed: false,
+            selectedOption: null,
+            pool,
+          });
+        };
+
+        const handleAnswer = (chosen) => {
+          const { questions, current, type, answers, pool } = quizState;
+          const correct = questions[current];
+          const isCorrect =
+            type === "pinyin"
+              ? chosen.pinyin === correct.pinyin
+              : chosen.meaning === correct.meaning;
+          const newAnswers = [
+            ...answers,
+            {
+              correct: isCorrect,
+              char: correct.char,
+              isReview: correct.isReview,
+            },
+          ];
+          // Step 1: show feedback on the CURRENT question (don't advance current yet)
+          setQuizState((p) => ({
+            ...p,
+            answers: newAnswers,
+            selectedOption: isCorrect ? "correct" : "wrong",
+            chosenChar: chosen.char,
+          }));
+          // Step 2: after delay, advance to next question
+          setTimeout(() => {
+            setQuizState((p) => {
+              if (!p) return p;
+              const next = current + 1;
+              if (next >= questions.length)
+                return {
+                  ...p,
+                  done: true,
+                  selectedOption: null,
+                  chosenChar: null,
+                };
+              return {
+                ...p,
+                current: next,
+                options: buildOptions(questions[next], pool, type),
+                selectedOption: null,
+                chosenChar: null,
+                revealed: false,
+              };
+            });
+          }, 850);
+        };
+
+        const handleFlashcard = (knew) => {
+          const { questions, current, answers, pool, type } = quizState;
+          const item = questions[current];
+          const newAnswers = [
+            ...answers,
+            { correct: knew, char: item.char, isReview: item.isReview },
+          ];
+          clearCanvas();
+          const next = current + 1;
+          if (next >= questions.length) {
+            setQuizState((p) => ({ ...p, answers: newAnswers, done: true }));
+            return;
+          }
+          setQuizState((p) => ({
+            ...p,
+            answers: newAnswers,
+            current: next,
+            options: buildOptions(questions[next], pool, type),
+            revealed: false,
+            selectedOption: null,
+          }));
+        };
+
+        // ── Canvas ────────────────────────────────────────────────────────────────────
+        const getPos = (e, canvas) => {
+          const r = canvas.getBoundingClientRect();
+          const s = e.touches ? e.touches[0] : e;
+          return {
+            x: (s.clientX - r.left) * (canvas.width / r.width),
+            y: (s.clientY - r.top) * (canvas.height / r.height),
+          };
+        };
+        const startDraw = (e) => {
+          e.preventDefault();
+          const c = canvasRef.current;
+          if (!c) return;
+          isDrawing.current = true;
+          const p = getPos(e, c);
+          lastPos.current = p;
+          const ctx = c.getContext("2d");
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = "#2C1A0E";
+          ctx.fill();
+        };
+        const draw = (e) => {
+          e.preventDefault();
+          if (!isDrawing.current) return;
+          const c = canvasRef.current;
+          if (!c) return;
+          const ctx = c.getContext("2d");
+          const p = getPos(e, c);
+          ctx.beginPath();
+          ctx.moveTo(lastPos.current.x, lastPos.current.y);
+          ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = "#2C1A0E";
+          ctx.lineWidth = 5;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.stroke();
+          lastPos.current = p;
+        };
+        const endDraw = (e) => {
+          e.preventDefault();
+          isDrawing.current = false;
+          lastPos.current = null;
+        };
+        const clearCanvas = () => {
+          const c = canvasRef.current;
+          if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
+        };
+
+        const handleCharHover = (e, item) => {
+          if (!item.pinyin) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          setTooltip({
+            visible: true,
+            char: item,
+            x: r.left + r.width / 2,
+            y: r.top + window.scrollY,
+          });
+        };
+
+        // ── Screens ───────────────────────────────────────────────────────────────────
+        const renderHome = () => (
+          <div>
+            <div className="welcome-banner">
+              <span style={{ fontSize: "3rem" }}>🎋</span>
+              <div>
+                <div
+                  style={{
+                    fontFamily: "'Fredoka One',cursive",
+                    fontSize: "1.5rem",
+                    marginBottom: 4,
+                  }}
+                >
+                  Hello, Little Scholar! 你好!
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-        {mastered.length>0&&(
-          <div style={{marginTop:28}}>
-            <div className="section-title" style={{marginBottom:12}}>⭐ Mastered ({mastered.length})</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {mastered.map(k=>(
-                <div key={k} style={{background:"rgba(46,204,154,0.12)",border:"2px solid var(--jade)",borderRadius:12,padding:"8px 14px",display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontFamily:"'Ma Shan Zheng',cursive",fontSize:"1.5rem"}}>{k}</span>
-                  <span style={{color:"var(--jade-dark)",fontSize:"0.8rem"}}>✓</span>
+                <div style={{ opacity: 0.9, fontSize: "0.95rem" }}>
+                  Upload a photo of your Chinese article to start reading &
+                  learning!
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderQuizTypeSelect = () => {
-    const cardBase={borderRadius:20,padding:"24px 20px 22px",cursor:"pointer",border:"none",textAlign:"left",transition:"transform 0.2s, box-shadow 0.2s",position:"relative",overflow:"hidden",display:"block",width:"100%"};
-    const badge={display:"inline-block",background:"rgba(255,255,255,0.25)",borderRadius:8,padding:"3px 10px",fontSize:"0.68rem",color:"white",fontFamily:"'Fredoka One',cursive",marginBottom:12,letterSpacing:"0.05em"};
-    const titleS={fontFamily:"'Fredoka One',cursive",fontSize:"1.2rem",color:"white",marginBottom:6};
-    const descS={fontSize:"0.78rem",color:"rgba(255,255,255,0.82)",lineHeight:1.45};
-    const cards=[
-      {type:"pinyin",bg:"linear-gradient(135deg,#C0392B,#922B21)",badge:"MULTIPLE CHOICE",icon:"🔤",name:"Pinyin Quiz",text:"See the character, pick the right pronunciation"},
-      {type:"meaning",bg:"linear-gradient(135deg,#1A7A5E,#0E6655)",badge:"MULTIPLE CHOICE",icon:"💬",name:"Meaning Quiz",text:"See the character, find the right English meaning"},
-      {type:"flashcard",bg:"linear-gradient(135deg,#B7770D,#9A6209)",badge:"SELF GRADED",icon:"🃏",name:"Flashcards",text:"Flip cards and test yourself honestly"},
-      {type:"writing",bg:"linear-gradient(135deg,#1A5276,#154360)",badge:"SELF GRADED",icon:"✍️",name:"Writing Quiz",text:"See the hint, draw the character by hand"},
-    ];
-    return (
-      <div style={{maxWidth:560,margin:"0 auto",padding:"8px 0"}}>
-        <div style={{textAlign:"center",marginBottom:32}}>
-          <span style={{fontSize:"3.5rem",display:"block",marginBottom:10}}>🏮</span>
-          <div style={{fontFamily:"'Ma Shan Zheng',cursive",fontSize:"2rem",color:"var(--red)",marginBottom:4}}>选择练习方式</div>
-          <div style={{color:"var(--ink-light)",fontSize:"0.95rem"}}>Choose how you want to practice today</div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:24}}>
-          {cards.map(c=>(
-            <button key={c.type} style={{...cardBase,background:c.bg}} onClick={()=>startQuiz(c.type)}
-              onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.boxShadow="0 12px 28px rgba(0,0,0,0.2)";}}
-              onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}>
-              <span style={{display:"inline-block",...badge}}>{c.badge}</span>
-              <span style={{fontSize:"2.8rem",display:"block",marginBottom:10}}>{c.icon}</span>
-              <div style={titleS}>{c.name}</div>
-              <div style={descS}>{c.text}</div>
-            </button>
-          ))}
-        </div>
-        <div style={{textAlign:"center"}}><button className="btn btn-outline btn-sm" onClick={()=>setScreen("chars")}>← Back to Study List</button></div>
-      </div>
-    );
-  };
-
-  const renderWritingQuiz = () => {
-    const {questions,current,revealed,answers} = quizState;
-    const item=questions[current];
-    const sz=Math.min(window.innerWidth-80,280);
-    return (
-      <div style={{maxWidth:520,margin:"0 auto"}}>
-        <div style={{display:"flex",gap:6,marginBottom:24,flexWrap:"wrap"}}>
-          {questions.map((_,i)=><div key={i} className={`progress-dot ${i<answers.length?(answers[i].correct?"correct":"wrong"):""} ${i===current?"current":""}`}/>)}
-        </div>
-        <div style={{textAlign:"center",marginBottom:12,color:"var(--ink-light)",fontSize:"0.85rem",fontFamily:"'Fredoka One',cursive"}}>{current+1} / {questions.length}</div>
-        <div style={{background:"white",borderRadius:28,padding:"28px 32px",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,0.1)",marginBottom:16,position:"relative",overflow:"hidden"}}>
-          <div style={{position:"absolute",top:0,left:0,right:0,height:6,background:"linear-gradient(90deg,var(--sky),var(--jade),var(--gold))"}}/>
-          <div style={{fontSize:"2rem",color:"var(--red)",fontWeight:700,marginBottom:6}}>{item.pinyin}</div>
-          <div style={{color:"var(--ink-light)"}}>{item.meaning}</div>
-          <div style={{fontSize:"0.8rem",color:"#bbb",marginTop:6}}>✍️ Write the character below</div>
-        </div>
-        <div style={{textAlign:"center"}}>
-          <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
-            <canvas ref={canvasRef} width={sz} height={sz} className="writing-canvas" style={{width:sz,height:sz}}
-              onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
-              onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}/>
-            <svg style={{position:"absolute",top:0,left:0,pointerEvents:"none",borderRadius:14}} width={sz} height={sz}>
-              <line x1={sz/2} y1="8" x2={sz/2} y2={sz-8} stroke="#f0e8e0" strokeWidth="1.5" strokeDasharray="6,4"/>
-              <line x1="8" y1={sz/2} x2={sz-8} y2={sz/2} stroke="#f0e8e0" strokeWidth="1.5" strokeDasharray="6,4"/>
-              <line x1="8" y1="8" x2={sz-8} y2={sz-8} stroke="#f0e8e0" strokeWidth="1" strokeDasharray="4,6"/>
-              <line x1={sz-8} y1="8" x2="8" y2={sz-8} stroke="#f0e8e0" strokeWidth="1" strokeDasharray="4,6"/>
-            </svg>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:16,flexWrap:"wrap"}}>
-          <button className="btn btn-outline btn-sm" onClick={clearCanvas}>🗑️ Clear</button>
-          {!revealed&&<button className="btn btn-gold" onClick={()=>setQuizState(p=>({...p,revealed:true}))}>👀 Reveal Answer</button>}
-        </div>
-        {revealed&&(
-          <>
-            <div style={{background:"rgba(192,57,43,0.06)",border:"2px solid var(--red)",borderRadius:20,padding:"16px 24px",textAlign:"center",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"center",gap:20}}>
-              <div style={{fontFamily:"'Ma Shan Zheng',cursive",fontSize:"5rem",color:"var(--red)",lineHeight:1}}>{item.char}</div>
-              <div style={{textAlign:"left"}}>
-                <div style={{fontSize:"1.1rem",color:"var(--ink)",fontWeight:500}}>{item.pinyin}</div>
-                <div style={{fontSize:"0.9rem",color:"var(--ink-light)",marginTop:4}}>{item.meaning}</div>
+              </div>
+              <div
+                style={{ marginLeft: "auto", fontSize: "1.5rem", opacity: 0.7 }}
+              >
+                🏮🏮
               </div>
             </div>
-            <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:12}}>
-              <button className="btn btn-red" onClick={()=>handleFlashcard(false)}>😅 Not quite</button>
-              <button className="btn btn-jade" onClick={()=>handleFlashcard(true)}>🌟 Got it!</button>
+            <div
+              className="upload-area"
+              onDrop={onDrop}
+              onDragOver={(e) => e.preventDefault()}
+              onClick={() => fileRef.current?.click()}
+            >
+              <span className="upload-icon">📸</span>
+              <div className="upload-title">
+                Take a Photo or Upload an Image
+              </div>
+              <div className="upload-sub">
+                Drop your Chinese article here, or click to choose a file
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={(e) => handleFile(e.target.files[0])}
+              />
             </div>
-          </>
-        )}
-        <div style={{textAlign:"center"}}><button className="btn btn-outline btn-sm" onClick={()=>{clearCanvas();setQuizState(null);}}>↩ Change Mode</button></div>
-      </div>
-    );
-  };
-
-  const renderQuiz = () => {
-    if(!quizState) return renderQuizTypeSelect();
-    if(quizState.done) return renderQuizResult();
-    const {questions,current,type,options,revealed,selectedOption,answers}=quizState;
-    const item=questions[current];
-    if(type==="writing") return renderWritingQuiz();
-    const isFlash=type==="flashcard";
-    return (
-      <div style={{maxWidth:520,margin:"0 auto"}}>
-        <div style={{display:"flex",gap:6,marginBottom:24,flexWrap:"wrap"}}>
-          {questions.map((_,i)=><div key={i} className={`progress-dot ${i<answers.length?(answers[i].correct?"correct":"wrong"):""} ${i===current?"current":""}`}/>)}
-        </div>
-        <div style={{textAlign:"center",marginBottom:8,color:"var(--ink-light)",fontSize:"0.85rem",fontFamily:"'Fredoka One',cursive"}}>{current+1} / {questions.length}</div>
-        <div className="quiz-card">
-          <div style={{fontSize:"0.82rem",color:"#aaa",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:16}}>{isFlash?"What's the pinyin & meaning?":type==="pinyin"?"Pick the correct pinyin":"Pick the correct meaning"}</div>
-          <div className="quiz-char">{item.char}</div>
-          {isFlash&&<div style={{fontSize:"1.1rem",color:revealed?"var(--red)":"transparent",marginTop:8,minHeight:28,fontWeight:500}}>{revealed?<div><div>{item.pinyin}</div><div style={{fontSize:"0.9rem",color:"#888",marginTop:4}}>{item.meaning}</div></div>:"•••"}</div>}
-        </div>
-        {isFlash?(revealed?(
-          <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-            <button className="btn btn-red" onClick={()=>handleFlashcard(false)}>😅 Didn't Know</button>
-            <button className="btn btn-jade" onClick={()=>handleFlashcard(true)}>🌟 I Knew It!</button>
+            {unknownCount > 0 && (
+              <div style={{ marginTop: 24, textAlign: "center" }}>
+                <p
+                  style={{
+                    color: "var(--ink-light)",
+                    marginBottom: 12,
+                    fontFamily: "'Fredoka One',cursive",
+                  }}
+                >
+                  You have {unknownCount} character{unknownCount > 1 ? "s" : ""}{" "}
+                  in your study list 📚
+                </p>
+                <button
+                  className="btn btn-jade"
+                  onClick={() => setScreen("chars")}
+                >
+                  📋 Review My Characters
+                </button>
+              </div>
+            )}
           </div>
-        ):(
-          <div style={{textAlign:"center"}}><button className="btn btn-gold" onClick={()=>setQuizState(p=>({...p,revealed:true}))}>👀 Reveal Answer</button></div>
-        )):(
-          <div className="quiz-options">
-            {options.map((opt,i)=>{
-              const isCorrect=type==="pinyin"?opt.pinyin===item.pinyin:opt.meaning===item.meaning;
-              let cls="";
-              if(selectedOption&&isCorrect) cls="correct";
-              else if(selectedOption==="wrong"&&!isCorrect&&opt===options[i]) cls="";
-              return <button key={i} className={`option-btn ${cls}`} onClick={()=>!selectedOption&&handleAnswer(opt)} disabled={!!selectedOption}>{type==="pinyin"?<span style={{fontSize:"1.1rem",fontWeight:500}}>{opt.pinyin}</span>:<span style={{fontSize:"0.95rem"}}>{opt.meaning}</span>}</button>;
-            })}
-          </div>
-        )}
-        <div style={{textAlign:"center",marginTop:12}}><button className="btn btn-outline btn-sm" onClick={()=>setQuizState(null)}>↩ Change Mode</button></div>
-      </div>
-    );
-  };
+        );
 
-  const renderQuizResult = () => {
-    const {answers}=quizState;
-    const correct=answers.filter(a=>a.correct).length;
-    const pct=Math.round(correct/answers.length*100);
-    const emoji=pct>=90?"🏆":pct>=70?"🌟":pct>=50?"😊":"💪";
-    const msg=pct>=90?"Outstanding!":pct>=70?"Great job!":pct>=50?"Good effort!":"Keep practicing!";
-    return (
-      <div style={{maxWidth:520,margin:"0 auto",textAlign:"center",padding:"40px 20px"}}>
-        <span style={{fontSize:"5rem",display:"block",marginBottom:16}}>{emoji}</span>
-        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"2rem",color:"var(--ink)",marginBottom:8}}>{msg}</div>
-        <div style={{fontSize:"1.1rem",color:"var(--ink-light)",marginBottom:24}}>{pct}% — {correct} out of {answers.length} correct</div>
-        <div style={{display:"flex",gap:16,justifyContent:"center",marginBottom:28,flexWrap:"wrap"}}>
-          {[{n:correct,l:"Correct",c:"var(--jade)"},{n:answers.length-correct,l:"To Review",c:"var(--red)"},{n:Object.keys(masteredChars).length,l:"Mastered",c:"var(--gold)"}].map(s=>(
-            <div key={s.l} style={{background:"white",borderRadius:16,padding:"16px 24px",textAlign:"center",boxShadow:"0 3px 12px rgba(0,0,0,0.08)",minWidth:90}}>
-              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"2rem",color:s.c}}>{s.n}</div>
-              <div style={{fontSize:"0.8rem",color:"#888"}}>{s.l}</div>
+        const renderLoading = () => (
+          <div className="loading-card">
+            <div className="loading-chars">
+              {["学", "习", "中", "文"].map((c, i) => (
+                <span
+                  key={i}
+                  className="loading-char"
+                  style={{
+                    animationDelay: `${i * 0.15}s`,
+                    color: [
+                      "var(--red)",
+                      "var(--gold)",
+                      "var(--jade)",
+                      "var(--sky)",
+                    ][i],
+                  }}
+                >
+                  {c}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-        <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-          <button className="btn btn-red" onClick={()=>startQuiz(quizState.type)}>🔁 Try Again</button>
-          <button className="btn btn-gold" onClick={()=>setQuizState(null)}>🎮 Change Mode</button>
-          <button className="btn btn-outline" onClick={()=>{setQuizState(null);setScreen("chars");}}>📋 Study List</button>
-        </div>
-      </div>
-    );
-  };
+            <div
+              style={{
+                fontFamily: "'Fredoka One',cursive",
+                fontSize: "1.2rem",
+                color: "var(--ink-light)",
+              }}
+            >
+              {loadingMsg}
+            </div>
+          </div>
+        );
 
-  return (
-    <div className="app">
-      <div className="header">
-        <div className="logo">🏮 <span style={{fontFamily:"'Ma Shan Zheng',cursive"}}>小学者</span> Little Scholar</div>
-        <div className="nav-tabs">
-          <button className={`nav-tab ${screen==="home"?"active":""}`} onClick={()=>setScreen("home")}>🏠 Home</button>
-          {parsedArticle&&<button className={`nav-tab ${screen==="reading"?"active":""}`} onClick={()=>setScreen("reading")}>📖 Read</button>}
-          <button className={`nav-tab ${screen==="chars"?"active":""}`} onClick={()=>setScreen("chars")}>
-            📚 Study {unknownCount>0&&<span className="count-badge">{unknownCount}</span>}
-          </button>
-          <button className={`nav-tab ${screen==="quiz"?"active":""}`} onClick={()=>{if(unknownCount>0)setScreen("quiz");else showToast("Add characters to your study list first!");}}>🎮 Quiz</button>
-        </div>
-      </div>
-      {loading?renderLoading():(
-        <>
-          {screen==="home"&&renderHome()}
-          {screen==="reading"&&renderReading()}
-          {screen==="chars"&&renderChars()}
-          {screen==="quiz"&&renderQuiz()}
-        </>
-      )}
-      {tooltip.visible&&tooltip.char&&(
-        <div className="char-tooltip" style={{left:tooltip.x,top:tooltip.y}}>
-          <div style={{color:"var(--gold-light)",fontSize:"0.95rem",fontWeight:500,marginBottom:3}}>{tooltip.char.pinyin}</div>
-          <div style={{color:"#ddd",fontSize:"0.8rem"}}>{tooltip.char.meaning}</div>
-        </div>
-      )}
-      <div className={`toast ${toast.show?"show":""}`}>{toast.msg}</div>
-    </div>
-  );
-}
+        const renderReading = () => {
+          if (!parsedArticle) return null;
+          return (
+            <div>
+              {imageDataUrl && (
+                <img
+                  src={imageDataUrl}
+                  style={{
+                    width: "100%",
+                    maxHeight: 200,
+                    objectFit: "cover",
+                    borderRadius: 16,
+                    marginBottom: 20,
+                    border: "3px solid var(--gold)",
+                  }}
+                  alt="Article"
+                />
+              )}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 16,
+                  flexWrap: "wrap",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'Fredoka One',cursive",
+                    fontSize: "1.3rem",
+                    color: "var(--ink)",
+                  }}
+                >
+                  📖 Reading Mode
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      setImageDataUrl(null);
+                      setParsedArticle(null);
+                      setScreen("home");
+                    }}
+                  >
+                    📸 New Article
+                  </button>
+                  {unknownCount > 0 && (
+                    <button
+                      className="btn btn-jade btn-sm"
+                      onClick={() => setScreen("chars")}
+                    >
+                      📋 Study List ({unknownCount})
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="reading-hint">
+                👆 <strong>Tap any character</strong> you don't know to add it
+                to your study list. Hover to peek at the meaning!
+              </div>
+              <div className="article-text">
+                {parsedArticle.map((item, idx) => {
+                  if (item.type === "break")
+                    return (
+                      <div key={idx} style={{ width: "100%", height: 8 }} />
+                    );
+                  if (item.type === "punct")
+                    return (
+                      <span key={idx} className="char-block punct">
+                        <span className="char-pinyin" />
+                        <span
+                          className="char-zh"
+                          style={{ fontSize: "1.4rem" }}
+                        >
+                          {item.char}
+                        </span>
+                      </span>
+                    );
+                  if (item.char === " ")
+                    return <span key={idx} style={{ minWidth: 8 }} />;
+                  const isUnknown = !!unknownChars[item.char];
+                  return (
+                    <span
+                      key={idx}
+                      className={`char-block ${isUnknown ? "unknown" : ""}`}
+                      onClick={() => toggleUnknown(item)}
+                      onMouseEnter={(e) => handleCharHover(e, item)}
+                      onMouseLeave={() =>
+                        setTooltip((t) => ({ ...t, visible: false }))
+                      }
+                    >
+                      <span className="char-pinyin">{item.pinyin || ""}</span>
+                      <span className="char-zh">{item.char}</span>
+                      {isUnknown && <span className="unknown-dot" />}
+                    </span>
+                  );
+                })}
+              </div>
+              {unknownCount > 0 && (
+                <div style={{ marginTop: 24, textAlign: "center" }}>
+                  <button
+                    className="btn btn-red"
+                    onClick={() => setScreen("quiz")}
+                  >
+                    🎮 Quiz Me on My {unknownCount} Characters!
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
+        const renderChars = () => {
+          const chars = Object.values(unknownChars);
+          const mastered = Object.keys(masteredChars);
+          return (
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 16,
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <div className="section-title">📚 My Study List</div>
+                {chars.length > 0 && (
+                  <button
+                    className="btn btn-red btn-sm"
+                    onClick={() => setScreen("quiz")}
+                  >
+                    🎮 Start Quiz
+                  </button>
+                )}
+              </div>
+              {chars.length === 0 ? (
+                <div className="empty-state">
+                  <span
+                    style={{
+                      fontSize: "4rem",
+                      display: "block",
+                      marginBottom: 16,
+                    }}
+                  >
+                    📭
+                  </span>
+                  <h3
+                    style={{
+                      fontFamily: "'Fredoka One',cursive",
+                      fontSize: "1.4rem",
+                      color: "var(--ink)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    No characters yet!
+                  </h3>
+                  <p>Read an article and tap characters you don't know.</p>
+                  <button
+                    className="btn btn-gold"
+                    style={{ marginTop: 20 }}
+                    onClick={() => setScreen("home")}
+                  >
+                    📸 Upload an Article
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p
+                    style={{
+                      color: "var(--ink-light)",
+                      marginBottom: 16,
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    Tap a card to mark as mastered ⭐ • {mastered.length}{" "}
+                    mastered so far!
+                  </p>
+                  <div className="char-grid">
+                    {chars.map((item) => (
+                      <div
+                        key={item.char}
+                        className="char-card"
+                        onClick={() => markMastered(item.char)}
+                      >
+                        <button
+                          style={{
+                            position: "absolute",
+                            top: 6,
+                            right: 8,
+                            background: "none",
+                            border: "none",
+                            color: "#ccc",
+                            cursor: "pointer",
+                            fontSize: "1rem",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeChar(item.char);
+                          }}
+                        >
+                          ×
+                        </button>
+                        <div className="big-char">{item.char}</div>
+                        <div
+                          style={{
+                            fontSize: "0.85rem",
+                            color: "var(--ink-light)",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {item.pinyin}
+                        </div>
+                        <div style={{ fontSize: "0.78rem", color: "#888" }}>
+                          {item.meaning}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {mastered.length > 0 && (
+                <div style={{ marginTop: 28 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div className="section-title">
+                      ⭐ Mastered ({mastered.length})
+                    </div>
+                  </div>
+                  <p
+                    style={{
+                      color: "var(--ink-light)",
+                      marginBottom: 12,
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    These appear occasionally in quizzes to keep them fresh 🔄
+                    Tap to move back to study list.
+                  </p>
+                  <div className="char-grid">
+                    {mastered.map((k) => {
+                      const info = masteredCharData[k] || {};
+                      return (
+                        <div
+                          key={k}
+                          className="char-card"
+                          style={{
+                            borderColor: "var(--jade)",
+                            background: "rgba(46,204,154,0.05)",
+                            cursor: "pointer",
+                            position: "relative",
+                          }}
+                          onClick={() => {
+                            setMasteredChars((prev) => {
+                              const n = { ...prev };
+                              delete n[k];
+                              return n;
+                            });
+                            setUnknownChars((prev) => ({
+                              ...prev,
+                              [k]: {
+                                char: k,
+                                pinyin: info.pinyin || "?",
+                                meaning: info.meaning || "",
+                              },
+                            }));
+                            showToast(`↩ "${k}" moved back to study list`);
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: 6,
+                              right: 6,
+                              fontSize: "0.65rem",
+                              color: "var(--jade-dark)",
+                              fontFamily: "'Fredoka One',cursive",
+                            }}
+                          >
+                            ⭐ MASTERED
+                          </div>
+                          <div
+                            className="big-char"
+                            style={{ color: "var(--jade-dark)" }}
+                          >
+                            {k}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "var(--jade-dark)",
+                              marginBottom: 4,
+                            }}
+                          >
+                            {info.pinyin || ""}
+                          </div>
+                          <div style={{ fontSize: "0.78rem", color: "#888" }}>
+                            {info.meaning || ""}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        const renderQuizTypeSelect = () => {
+          const cardBase = {
+            borderRadius: 20,
+            padding: "24px 20px 22px",
+            cursor: "pointer",
+            border: "none",
+            textAlign: "left",
+            transition: "transform 0.2s, box-shadow 0.2s",
+            position: "relative",
+            overflow: "hidden",
+            display: "block",
+            width: "100%",
+          };
+          const badge = {
+            display: "inline-block",
+            background: "rgba(255,255,255,0.25)",
+            borderRadius: 8,
+            padding: "3px 10px",
+            fontSize: "0.68rem",
+            color: "white",
+            fontFamily: "'Fredoka One',cursive",
+            marginBottom: 12,
+            letterSpacing: "0.05em",
+          };
+          const titleS = {
+            fontFamily: "'Fredoka One',cursive",
+            fontSize: "1.2rem",
+            color: "white",
+            marginBottom: 6,
+          };
+          const descS = {
+            fontSize: "0.78rem",
+            color: "rgba(255,255,255,0.82)",
+            lineHeight: 1.45,
+          };
+          const cards = [
+            {
+              type: "pinyin",
+              bg: "linear-gradient(135deg,#C0392B,#922B21)",
+              badge: "MULTIPLE CHOICE",
+              icon: "🔤",
+              name: "Pinyin Quiz",
+              text: "See the character, pick the right pronunciation",
+            },
+            {
+              type: "meaning",
+              bg: "linear-gradient(135deg,#1A7A5E,#0E6655)",
+              badge: "MULTIPLE CHOICE",
+              icon: "💬",
+              name: "Meaning Quiz",
+              text: "See the character, find the right English meaning",
+            },
+            {
+              type: "flashcard",
+              bg: "linear-gradient(135deg,#B7770D,#9A6209)",
+              badge: "SELF GRADED",
+              icon: "🃏",
+              name: "Flashcards",
+              text: "Flip cards and test yourself honestly",
+            },
+            {
+              type: "writing",
+              bg: "linear-gradient(135deg,#1A5276,#154360)",
+              badge: "SELF GRADED",
+              icon: "✍️",
+              name: "Writing Quiz",
+              text: "See the hint, draw the character by hand",
+            },
+          ];
+          return (
+            <div style={{ maxWidth: 560, margin: "0 auto", padding: "8px 0" }}>
+              <div style={{ textAlign: "center", marginBottom: 32 }}>
+                <span
+                  style={{
+                    fontSize: "3.5rem",
+                    display: "block",
+                    marginBottom: 10,
+                  }}
+                >
+                  🏮
+                </span>
+                <div
+                  style={{
+                    fontFamily: "'Ma Shan Zheng',cursive",
+                    fontSize: "2rem",
+                    color: "var(--red)",
+                    marginBottom: 4,
+                  }}
+                >
+                  选择练习方式
+                </div>
+                <div style={{ color: "var(--ink-light)", fontSize: "0.95rem" }}>
+                  Choose how you want to practice today
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 14,
+                  marginBottom: 24,
+                }}
+              >
+                {cards.map((c) => (
+                  <button
+                    key={c.type}
+                    style={{ ...cardBase, background: c.bg }}
+                    onClick={() => startQuiz(c.type)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-4px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 12px 28px rgba(0,0,0,0.2)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "";
+                      e.currentTarget.style.boxShadow = "";
+                    }}
+                  >
+                    <span style={{ display: "inline-block", ...badge }}>
+                      {c.badge}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "2.8rem",
+                        display: "block",
+                        marginBottom: 10,
+                      }}
+                    >
+                      {c.icon}
+                    </span>
+                    <div style={titleS}>{c.name}</div>
+                    <div style={descS}>{c.text}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setScreen("chars")}
+                >
+                  ← Back to Study List
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        const renderWritingQuiz = () => {
+          const { questions, current, revealed, answers } = quizState;
+          const item = questions[current];
+          const sz = Math.min(window.innerWidth - 80, 280);
+          return (
+            <div style={{ maxWidth: 520, margin: "0 auto" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  marginBottom: 24,
+                  flexWrap: "wrap",
+                }}
+              >
+                {questions.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`progress-dot ${i < answers.length ? (answers[i].correct ? "correct" : "wrong") : ""} ${i === current ? "current" : ""}`}
+                  />
+                ))}
+              </div>
+              <div
+                style={{
+                  textAlign: "center",
+                  marginBottom: 12,
+                  color: "var(--ink-light)",
+                  fontSize: "0.85rem",
+                  fontFamily: "'Fredoka One',cursive",
+                }}
+              >
+                {current + 1} / {questions.length}
+              </div>
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 28,
+                  padding: "28px 32px",
+                  textAlign: "center",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+                  marginBottom: 16,
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 6,
+                    background:
+                      "linear-gradient(90deg,var(--sky),var(--jade),var(--gold))",
+                  }}
+                />
+                {item.isReview && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 14,
+                      right: 16,
+                      background: "rgba(46,204,154,0.15)",
+                      border: "1px solid var(--jade)",
+                      borderRadius: 8,
+                      padding: "3px 10px",
+                      fontSize: "0.7rem",
+                      color: "var(--jade-dark)",
+                      fontFamily: "'Fredoka One',cursive",
+                    }}
+                  >
+                    ⭐ REVIEW
+                  </div>
+                )}
+                <div
+                  style={{
+                    fontSize: "2rem",
+                    color: "var(--red)",
+                    fontWeight: 700,
+                    marginBottom: 6,
+                  }}
+                >
+                  {item.pinyin}
+                </div>
+                <div style={{ color: "var(--ink-light)" }}>{item.meaning}</div>
+                <div
+                  style={{ fontSize: "0.8rem", color: "#bbb", marginTop: 6 }}
+                >
+                  ✍️ Write the character below
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    position: "relative",
+                    display: "inline-block",
+                    marginBottom: 16,
+                  }}
+                >
+                  <canvas
+                    ref={canvasRef}
+                    width={sz}
+                    height={sz}
+                    className="writing-canvas"
+                    style={{ width: sz, height: sz }}
+                    onMouseDown={startDraw}
+                    onMouseMove={draw}
+                    onMouseUp={endDraw}
+                    onMouseLeave={endDraw}
+                    onTouchStart={startDraw}
+                    onTouchMove={draw}
+                    onTouchEnd={endDraw}
+                  />
+                  <svg
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      pointerEvents: "none",
+                      borderRadius: 14,
+                    }}
+                    width={sz}
+                    height={sz}
+                  >
+                    <line
+                      x1={sz / 2}
+                      y1="8"
+                      x2={sz / 2}
+                      y2={sz - 8}
+                      stroke="#f0e8e0"
+                      strokeWidth="1.5"
+                      strokeDasharray="6,4"
+                    />
+                    <line
+                      x1="8"
+                      y1={sz / 2}
+                      x2={sz - 8}
+                      y2={sz / 2}
+                      stroke="#f0e8e0"
+                      strokeWidth="1.5"
+                      strokeDasharray="6,4"
+                    />
+                    <line
+                      x1="8"
+                      y1="8"
+                      x2={sz - 8}
+                      y2={sz - 8}
+                      stroke="#f0e8e0"
+                      strokeWidth="1"
+                      strokeDasharray="4,6"
+                    />
+                    <line
+                      x1={sz - 8}
+                      y1="8"
+                      x2="8"
+                      y2={sz - 8}
+                      stroke="#f0e8e0"
+                      strokeWidth="1"
+                      strokeDasharray="4,6"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  justifyContent: "center",
+                  marginBottom: 16,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={clearCanvas}
+                >
+                  🗑️ Clear
+                </button>
+                {!revealed && (
+                  <button
+                    className="btn btn-gold"
+                    onClick={() =>
+                      setQuizState((p) => ({ ...p, revealed: true }))
+                    }
+                  >
+                    👀 Reveal Answer
+                  </button>
+                )}
+              </div>
+              {revealed && (
+                <>
+                  <div
+                    style={{
+                      background: "rgba(192,57,43,0.06)",
+                      border: "2px solid var(--red)",
+                      borderRadius: 20,
+                      padding: "16px 24px",
+                      textAlign: "center",
+                      marginBottom: 16,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 20,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "'Ma Shan Zheng',cursive",
+                        fontSize: "5rem",
+                        color: "var(--red)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {item.char}
+                    </div>
+                    <div style={{ textAlign: "left" }}>
+                      <div
+                        style={{
+                          fontSize: "1.1rem",
+                          color: "var(--ink)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.pinyin}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.9rem",
+                          color: "var(--ink-light)",
+                          marginTop: 4,
+                        }}
+                      >
+                        {item.meaning}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      justifyContent: "center",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <button
+                      className="btn btn-red"
+                      onClick={() => handleFlashcard(false)}
+                    >
+                      😅 Not quite
+                    </button>
+                    <button
+                      className="btn btn-jade"
+                      onClick={() => handleFlashcard(true)}
+                    >
+                      🌟 Got it!
+                    </button>
+                  </div>
+                </>
+              )}
+              <div style={{ textAlign: "center" }}>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    clearCanvas();
+                    setQuizState(null);
+                  }}
+                >
+                  ↩ Change Mode
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        const renderQuiz = () => {
+          if (!quizState) return renderQuizTypeSelect();
+          if (quizState.done) return renderQuizResult();
+          const {
+            questions,
+            current,
+            type,
+            options,
+            revealed,
+            selectedOption,
+            answers,
+          } = quizState;
+          const item = questions[current];
+          if (type === "writing") return renderWritingQuiz();
+          const isFlash = type === "flashcard";
+          return (
+            <div style={{ maxWidth: 520, margin: "0 auto" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  marginBottom: 24,
+                  flexWrap: "wrap",
+                }}
+              >
+                {questions.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`progress-dot ${i < answers.length ? (answers[i].correct ? "correct" : "wrong") : ""} ${i === current ? "current" : ""}`}
+                  />
+                ))}
+              </div>
+              <div
+                style={{
+                  textAlign: "center",
+                  marginBottom: 8,
+                  color: "var(--ink-light)",
+                  fontSize: "0.85rem",
+                  fontFamily: "'Fredoka One',cursive",
+                }}
+              >
+                {current + 1} / {questions.length}
+              </div>
+              <div className="quiz-card" style={{ position: "relative" }}>
+                {item.isReview && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 14,
+                      right: 16,
+                      background: "rgba(46,204,154,0.15)",
+                      border: "1px solid var(--jade)",
+                      borderRadius: 8,
+                      padding: "3px 10px",
+                      fontSize: "0.7rem",
+                      color: "var(--jade-dark)",
+                      fontFamily: "'Fredoka One',cursive",
+                    }}
+                  >
+                    ⭐ REVIEW
+                  </div>
+                )}
+                <div
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "#aaa",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    marginBottom: 16,
+                  }}
+                >
+                  {isFlash
+                    ? "What's the pinyin & meaning?"
+                    : type === "pinyin"
+                      ? "Pick the correct pinyin"
+                      : "Pick the correct meaning"}
+                </div>
+                <div className="quiz-char">{item.char}</div>
+                {isFlash && (
+                  <div
+                    style={{
+                      fontSize: "1.1rem",
+                      color: revealed ? "var(--red)" : "transparent",
+                      marginTop: 8,
+                      minHeight: 28,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {revealed ? (
+                      <div>
+                        <div>{item.pinyin}</div>
+                        <div
+                          style={{
+                            fontSize: "0.9rem",
+                            color: "#888",
+                            marginTop: 4,
+                          }}
+                        >
+                          {item.meaning}
+                        </div>
+                      </div>
+                    ) : (
+                      "•••"
+                    )}
+                  </div>
+                )}
+              </div>
+              {isFlash ? (
+                revealed ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      justifyContent: "center",
+                    }}
+                  >
+                    <button
+                      className="btn btn-red"
+                      onClick={() => handleFlashcard(false)}
+                    >
+                      😅 Didn't Know
+                    </button>
+                    <button
+                      className="btn btn-jade"
+                      onClick={() => handleFlashcard(true)}
+                    >
+                      🌟 I Knew It!
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center" }}>
+                    <button
+                      className="btn btn-gold"
+                      onClick={() =>
+                        setQuizState((p) => ({ ...p, revealed: true }))
+                      }
+                    >
+                      👀 Reveal Answer
+                    </button>
+                  </div>
+                )
+              ) : (
+                <div className="quiz-options">
+                  {options.map((opt, i) => {
+                    const isThisCorrect =
+                      type === "pinyin"
+                        ? opt.pinyin === item.pinyin
+                        : opt.meaning === item.meaning;
+                    const isChosen = opt.char === quizState.chosenChar;
+                    let cls = "";
+                    if (selectedOption) {
+                      if (isThisCorrect) cls = "correct";
+                      else if (isChosen) cls = "wrong";
+                    }
+                    return (
+                      <button
+                        key={i}
+                        className={`option-btn ${cls}`}
+                        onClick={() => !selectedOption && handleAnswer(opt)}
+                        disabled={!!selectedOption}
+                      >
+                        {type === "pinyin" ? (
+                          <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>
+                            {opt.pinyin}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "0.95rem" }}>
+                            {opt.meaning}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ textAlign: "center", marginTop: 12 }}>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setQuizState(null)}
+                >
+                  ↩ Change Mode
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        const renderQuizResult = () => {
+          const { answers } = quizState;
+          const correct = answers.filter((a) => a.correct).length;
+          const pct = Math.round((correct / answers.length) * 100);
+          const emoji =
+            pct >= 90 ? "🏆" : pct >= 70 ? "🌟" : pct >= 50 ? "😊" : "💪";
+          const msg =
+            pct >= 90
+              ? "Outstanding!"
+              : pct >= 70
+                ? "Great job!"
+                : pct >= 50
+                  ? "Good effort!"
+                  : "Keep practicing!";
+          return (
+            <div
+              style={{
+                maxWidth: 520,
+                margin: "0 auto",
+                textAlign: "center",
+                padding: "40px 20px",
+              }}
+            >
+              <span
+                style={{ fontSize: "5rem", display: "block", marginBottom: 16 }}
+              >
+                {emoji}
+              </span>
+              <div
+                style={{
+                  fontFamily: "'Fredoka One',cursive",
+                  fontSize: "2rem",
+                  color: "var(--ink)",
+                  marginBottom: 8,
+                }}
+              >
+                {msg}
+              </div>
+              <div
+                style={{
+                  fontSize: "1.1rem",
+                  color: "var(--ink-light)",
+                  marginBottom: 24,
+                }}
+              >
+                {pct}% — {correct} out of {answers.length} correct
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  justifyContent: "center",
+                  marginBottom: 28,
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                  { n: correct, l: "Correct", c: "var(--jade)" },
+                  {
+                    n: answers.length - correct,
+                    l: "To Review",
+                    c: "var(--red)",
+                  },
+                  {
+                    n: Object.keys(masteredChars).length,
+                    l: "Mastered",
+                    c: "var(--gold)",
+                  },
+                ].map((s) => (
+                  <div
+                    key={s.l}
+                    style={{
+                      background: "white",
+                      borderRadius: 16,
+                      padding: "16px 24px",
+                      textAlign: "center",
+                      boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
+                      minWidth: 90,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "'Fredoka One',cursive",
+                        fontSize: "2rem",
+                        color: s.c,
+                      }}
+                    >
+                      {s.n}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#888" }}>
+                      {s.l}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  className="btn btn-red"
+                  onClick={() => startQuiz(quizState.type)}
+                >
+                  🔁 Try Again
+                </button>
+                <button
+                  className="btn btn-gold"
+                  onClick={() => setQuizState(null)}
+                >
+                  🎮 Change Mode
+                </button>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setQuizState(null);
+                    setScreen("chars");
+                  }}
+                >
+                  📋 Study List
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="app">
+            <div className="header">
+              <div className="logo">
+                🏮{" "}
+                <span style={{ fontFamily: "'Ma Shan Zheng',cursive" }}>
+                  小学者
+                </span>{" "}
+                Little Scholar
+              </div>
+              <div className="nav-tabs">
+                <button
+                  className={`nav-tab ${screen === "home" ? "active" : ""}`}
+                  onClick={() => setScreen("home")}
+                >
+                  🏠 Home
+                </button>
+                {parsedArticle && (
+                  <button
+                    className={`nav-tab ${screen === "reading" ? "active" : ""}`}
+                    onClick={() => setScreen("reading")}
+                  >
+                    📖 Read
+                  </button>
+                )}
+                <button
+                  className={`nav-tab ${screen === "chars" ? "active" : ""}`}
+                  onClick={() => setScreen("chars")}
+                >
+                  📚 Study{" "}
+                  {unknownCount > 0 && (
+                    <span className="count-badge">{unknownCount}</span>
+                  )}
+                </button>
+                <button
+                  className={`nav-tab ${screen === "quiz" ? "active" : ""}`}
+                  onClick={() => {
+                    if (unknownCount > 0) setScreen("quiz");
+                    else showToast("Add characters to your study list first!");
+                  }}
+                >
+                  🎮 Quiz
+                </button>
+              </div>
+            </div>
+            {loading ? (
+              renderLoading()
+            ) : (
+              <>
+                {screen === "home" && renderHome()}
+                {screen === "reading" && renderReading()}
+                {screen === "chars" && renderChars()}
+                {screen === "quiz" && renderQuiz()}
+              </>
+            )}
+            {tooltip.visible && tooltip.char && (
+              <div
+                className="char-tooltip"
+                style={{ left: tooltip.x, top: tooltip.y }}
+              >
+                <div
+                  style={{
+                    color: "var(--gold-light)",
+                    fontSize: "0.95rem",
+                    fontWeight: 500,
+                    marginBottom: 3,
+                  }}
+                >
+                  {tooltip.char.pinyin}
+                </div>
+                <div style={{ color: "#ddd", fontSize: "0.8rem" }}>
+                  {tooltip.char.meaning}
+                </div>
+              </div>
+            )}
+            <div className={`toast ${toast.show ? "show" : ""}`}>
+              {toast.msg}
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
 </html>
