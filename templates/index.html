@@ -468,27 +468,6 @@
           font-size: 0.8rem;
         }
       }
-      .debug-panel {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: #1a1a1a;
-        color: #00ff88;
-        font-family: monospace;
-        font-size: 0.72rem;
-        padding: 8px 12px;
-        max-height: 35vh;
-        overflow-y: auto;
-        z-index: 9999;
-        border-top: 2px solid #00ff88;
-      }
-      .debug-panel .err {
-        color: #ff6b6b;
-      }
-      .debug-panel .ok {
-        color: #00ff88;
-      }
 
       /* TTS player bar */
       .tts-bar {
@@ -740,6 +719,22 @@
         await fetch("/api/logout", { method: "POST", credentials: "include" });
       }
 
+      async function apiLoadData() {
+        const res = await fetch("/api/data", { credentials: "include" });
+        if (res.status === 401) throw new Error("SESSION_EXPIRED");
+        return res.json();
+      }
+
+      async function apiSaveData(payload) {
+        const res = await fetch("/api/data", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.status === 401) throw new Error("SESSION_EXPIRED");
+      }
+
       // ── Image preprocessing ────────────────────────────────────────────────────────
       function preprocessImage(dataUrl) {
         return new Promise((resolve, reject) => {
@@ -890,45 +885,13 @@
         const [imageDataUrl, setImageDataUrl] = useState(null);
         const [loading, setLoading] = useState(false);
         const [loadingMsg, setLoadingMsg] = useState("");
-        const [unknownChars, setUnknownChars] = useState(() => {
-          try {
-            return JSON.parse(localStorage.getItem(STORAGE.unknown) || "{}");
-          } catch {
-            return {};
-          }
-        });
-        const [masteredChars, setMasteredChars] = useState(() => {
-          try {
-            return JSON.parse(localStorage.getItem(STORAGE.mastered) || "{}");
-          } catch {
-            return {};
-          }
-        });
-        const [masteredCharData, setMasteredCharData] = useState(() => {
-          try {
-            return JSON.parse(localStorage.getItem("ls-mastered-data") || "{}");
-          } catch {
-            return {};
-          }
-        });
-        const [articleHistory, setArticleHistory] = useState(() => {
-          try {
-            return JSON.parse(localStorage.getItem("ls-history") || "[]");
-          } catch {
-            return [];
-          }
-        });
+        const [unknownChars, setUnknownChars] = useState({});
+        const [masteredChars, setMasteredChars] = useState({});
+        const [masteredCharData, setMasteredCharData] = useState({});
+        const [articleHistory, setArticleHistory] = useState([]);
         const [quizState, setQuizState] = useState(null);
         const [toast, setToast] = useState({ msg: "", show: false });
-        const [debugLog, setDebugLog] = useState([]);
-        const [showDebug, setShowDebug] = useState(false);
-        const dbg = (msg, isErr = false) => {
-          console.log(msg);
-          setDebugLog((prev) => [
-            ...prev.slice(-30),
-            { msg: new Date().toLocaleTimeString() + " " + msg, isErr },
-          ]);
-        };
+
         const [tooltip, setTooltip] = useState({
           visible: false,
           char: null,
@@ -948,21 +911,48 @@
         const [availableVoices, setAvailableVoices] = useState([]);
         const ttsToken = useRef(0); // incremented on every stop — stale closures self-abort
 
+        // ── Server sync ──────────────────────────────────────────────────────────────
+        const [dataReady, setDataReady] = useState(false);
+        const saveTimer = useRef(null);
+
+        // Load from server on mount
         useEffect(() => {
-          localStorage.setItem(STORAGE.unknown, JSON.stringify(unknownChars));
-        }, [unknownChars]);
+          apiLoadData()
+            .then((data) => {
+              if (data.unknownChars) setUnknownChars(data.unknownChars);
+              if (data.masteredChars) setMasteredChars(data.masteredChars);
+              if (data.masteredCharData)
+                setMasteredCharData(data.masteredCharData);
+              if (data.articleHistory) setArticleHistory(data.articleHistory);
+            })
+            .catch((err) => {
+              if (err.message === "SESSION_EXPIRED") onLogout();
+            })
+            .finally(() => setDataReady(true));
+        }, []);
+
+        // Debounced save — fires 1.5s after the last change
+        const scheduleSave = useCallback(
+          (payload) => {
+            if (!dataReady) return;
+            if (saveTimer.current) clearTimeout(saveTimer.current);
+            saveTimer.current = setTimeout(() => {
+              apiSaveData(payload).catch((err) => {
+                if (err.message === "SESSION_EXPIRED") onLogout();
+              });
+            }, 1500);
+          },
+          [dataReady],
+        );
+
         useEffect(() => {
-          localStorage.setItem(STORAGE.mastered, JSON.stringify(masteredChars));
-        }, [masteredChars]);
-        useEffect(() => {
-          localStorage.setItem(
-            "ls-mastered-data",
-            JSON.stringify(masteredCharData),
-          );
-        }, [masteredCharData]);
-        useEffect(() => {
-          localStorage.setItem("ls-history", JSON.stringify(articleHistory));
-        }, [articleHistory]);
+          scheduleSave({
+            unknownChars,
+            masteredChars,
+            masteredCharData,
+            articleHistory,
+          });
+        }, [unknownChars, masteredChars, masteredCharData, articleHistory]);
 
         const showToast = (msg) => {
           setToast({ msg, show: true });
@@ -973,14 +963,8 @@
         // ── File handling ────────────────────────────────────────────────────────────
         const handleFile = async (file) => {
           if (!file) return;
-          setDebugLog([]);
-          setShowDebug(true);
           setLoading(true);
           try {
-            dbg(
-              `File: ${file.name || "photo"} ${(file.size / 1024).toFixed(0)}KB type:${file.type}`,
-            );
-
             // Read file — proper Promise wrapper so errors are catchable
             const dataUrl = await new Promise((resolve, reject) => {
               const reader = new FileReader();
@@ -988,16 +972,13 @@
               reader.onerror = () => reject(new Error("FileReader failed"));
               reader.readAsDataURL(file);
             });
-            dbg("Read OK " + (dataUrl.length / 1024).toFixed(0) + "KB");
             setImageDataUrl(dataUrl);
 
             setLoadingMsg("Enhancing image… ✨");
             const base64 = await preprocessImage(dataUrl);
-            dbg("Preprocess OK " + (base64.length / 1024).toFixed(0) + "KB");
 
             setLoadingMsg("Reading with Google Vision… 📖");
             const articleText = await apiOcr(base64);
-            dbg("OCR OK " + articleText.length + " chars");
 
             const unique = [
               ...new Set(articleText.split("").filter(isChinese)),
@@ -1012,7 +993,6 @@
               const result = await apiLookup(batch);
               Object.assign(lookup, result);
             }
-            dbg("Lookup OK " + Object.keys(lookup).length + " chars");
 
             const arr = [];
             for (const ch of articleText) {
@@ -1046,10 +1026,8 @@
             setArticleHistory((prev) =>
               [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, 10),
             );
-            dbg("Done! " + arr.length + " tokens");
             setScreen("reading");
           } catch (err) {
-            dbg("ERROR: " + (err.message || String(err)), true);
             console.error("handleFile:", err);
             if (err.message === "SESSION_EXPIRED") {
               onLogout();
@@ -3008,35 +2986,6 @@
             <div className={`toast ${toast.show ? "show" : ""}`}>
               {toast.msg}
             </div>
-            {showDebug && debugLog.length > 0 && (
-              <div className="debug-panel">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 4,
-                  }}
-                >
-                  <strong>📱 Debug Log</strong>
-                  <button
-                    onClick={() => setShowDebug(false)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "#aaa",
-                      cursor: "pointer",
-                    }}
-                  >
-                    ✕ hide
-                  </button>
-                </div>
-                {debugLog.map((l, i) => (
-                  <div key={i} className={l.isErr ? "err" : "ok"}>
-                    {l.msg}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         );
       }

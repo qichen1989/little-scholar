@@ -1,7 +1,9 @@
 import os
+import json
+import sqlite3
 import functools
 import requests
-from flask import Flask, request, jsonify, send_from_directory, session
+from flask import Flask, request, jsonify, send_from_directory, session, g
 from flask_cors import CORS
 from pypinyin import pinyin, Style
 from dotenv import load_dotenv
@@ -13,9 +15,36 @@ app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
 CORS(app, supports_credentials=True)
 
 GOOGLE_VISION_KEY = os.environ["GOOGLE_VISION_API_KEY"]
-APP_PASSWORD = os.environ["APP_PASSWORD"]  # set this in .env
+APP_PASSWORD = os.environ["APP_PASSWORD"]
+DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
 
-# ── Load CC-CEDICT dictionary ──────────────────────────────────────────────────
+# ── SQLite ─────────────────────────────────────────────────────────────────────
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+@app.teardown_appcontext
+def close_db(e=None):
+    db = g.pop("db", None)
+    if db: db.close()
+
+def init_db():
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS store (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        db.commit()
+    print("DB ready:", DB_PATH)
+
+init_db()
+
+
+# ── CC-CEDICT dictionary ───────────────────────────────────────────────────────
 CEDICT = {}
 
 def load_cedict():
@@ -47,7 +76,7 @@ def load_cedict():
 load_cedict()
 
 
-# ── Auth helper ────────────────────────────────────────────────────────────────
+# ── Auth ───────────────────────────────────────────────────────────────────────
 def require_auth(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
@@ -57,7 +86,7 @@ def require_auth(f):
     return decorated
 
 
-# ── Serve frontend ─────────────────────────────────────────────────────────────
+# ── Frontend ───────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return send_from_directory("templates", "index.html")
@@ -83,7 +112,38 @@ def me():
     return jsonify({"authenticated": bool(session.get("authenticated"))})
 
 
-# ── OCR endpoint ───────────────────────────────────────────────────────────────
+# ── Data sync endpoints ────────────────────────────────────────────────────────
+STORE_KEYS = ["unknownChars", "masteredChars", "masteredCharData", "articleHistory"]
+
+@app.route("/api/data", methods=["GET"])
+@require_auth
+def get_data():
+    db = get_db()
+    result = {}
+    for key in STORE_KEYS:
+        row = db.execute("SELECT value FROM store WHERE key=?", (key,)).fetchone()
+        if row:
+            result[key] = json.loads(row["value"])
+        else:
+            result[key] = {} if key != "articleHistory" else []
+    return jsonify(result)
+
+@app.route("/api/data", methods=["POST"])
+@require_auth
+def save_data():
+    data = request.get_json()
+    db = get_db()
+    for key in STORE_KEYS:
+        if key in data:
+            db.execute(
+                "INSERT INTO store(key, value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, json.dumps(data[key], ensure_ascii=False))
+            )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+# ── OCR ────────────────────────────────────────────────────────────────────────
 @app.route("/api/ocr", methods=["POST"])
 @require_auth
 def ocr():
@@ -100,22 +160,19 @@ def ocr():
             "imageContext": {"languageHints": ["zh-Hans", "zh-Hant"]}
         }]
     }
-
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
     result = resp.json()
 
     if "error" in result:
         return jsonify({"error": result["error"]["message"]}), 500
-
     annotation = result["responses"][0].get("fullTextAnnotation")
     if not annotation:
         return jsonify({"error": "No text detected in image"}), 422
-
     return jsonify({"text": annotation["text"].strip()})
 
 
-# ── Pinyin lookup endpoint ─────────────────────────────────────────────────────
+# ── Pinyin lookup ──────────────────────────────────────────────────────────────
 @app.route("/api/lookup", methods=["POST"])
 @require_auth
 def lookup():
@@ -132,11 +189,10 @@ def lookup():
         if not meaning and len(char) > 1:
             meaning = CEDICT.get(char[0], "")
         result[char] = {"pinyin": pinyin_str, "meaning": meaning}
-
     return jsonify({"lookup": result})
 
 
-# ── Health check ───────────────────────────────────────────────────────────────
+# ── Health ─────────────────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "cedict_entries": len(CEDICT)})
