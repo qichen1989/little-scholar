@@ -468,6 +468,27 @@
           font-size: 0.8rem;
         }
       }
+      .debug-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #1a1a1a;
+        color: #00ff88;
+        font-family: monospace;
+        font-size: 0.72rem;
+        padding: 8px 12px;
+        max-height: 35vh;
+        overflow-y: auto;
+        z-index: 9999;
+        border-top: 2px solid #00ff88;
+      }
+      .debug-panel .err {
+        color: #ff6b6b;
+      }
+      .debug-panel .ok {
+        color: #00ff88;
+      }
 
       /* TTS player bar */
       .tts-bar {
@@ -726,8 +747,8 @@
           img.onerror = () => reject(new Error("Could not load image"));
           img.onload = () => {
             try {
-              // Cap at 1200px — enough for OCR, safe on mobile memory
-              const MAX = 1200;
+              // Keep longest side to 1000px max — safe on all mobile browsers
+              const MAX = 1000;
               let w = img.width,
                 h = img.height;
               if (Math.max(w, h) > MAX) {
@@ -742,9 +763,8 @@
               ctx.imageSmoothingEnabled = true;
               ctx.imageSmoothingQuality = "high";
               ctx.drawImage(img, 0, 0, w, h);
-              // Lightweight grayscale — no pixel array manipulation to save memory on mobile
-              // Google Vision handles contrast internally so we just resize + convert format
-              resolve(canvas.toDataURL("image/jpeg", 0.92).split(",")[1]);
+              // JPEG at 0.7 quality — keeps base64 under ~200KB for Vision API
+              resolve(canvas.toDataURL("image/jpeg", 0.7).split(",")[1]);
             } catch (err) {
               reject(err);
             }
@@ -900,6 +920,15 @@
         });
         const [quizState, setQuizState] = useState(null);
         const [toast, setToast] = useState({ msg: "", show: false });
+        const [debugLog, setDebugLog] = useState([]);
+        const [showDebug, setShowDebug] = useState(false);
+        const dbg = (msg, isErr = false) => {
+          console.log(msg);
+          setDebugLog((prev) => [
+            ...prev.slice(-30),
+            { msg: new Date().toLocaleTimeString() + " " + msg, isErr },
+          ]);
+        };
         const [tooltip, setTooltip] = useState({
           visible: false,
           char: null,
@@ -944,75 +973,92 @@
         // ── File handling ────────────────────────────────────────────────────────────
         const handleFile = async (file) => {
           if (!file) return;
+          setDebugLog([]);
+          setShowDebug(true);
           setLoading(true);
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            const dataUrl = e.target.result;
+          try {
+            dbg(
+              `File: ${file.name || "photo"} ${(file.size / 1024).toFixed(0)}KB type:${file.type}`,
+            );
+
+            // Read file — proper Promise wrapper so errors are catchable
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target.result);
+              reader.onerror = () => reject(new Error("FileReader failed"));
+              reader.readAsDataURL(file);
+            });
+            dbg("Read OK " + (dataUrl.length / 1024).toFixed(0) + "KB");
             setImageDataUrl(dataUrl);
-            try {
-              setLoadingMsg("Enhancing image… ✨");
-              const base64 = await preprocessImage(dataUrl);
 
-              setLoadingMsg("Reading with Google Vision… 📖");
-              const articleText = await apiOcr(base64);
+            setLoadingMsg("Enhancing image… ✨");
+            const base64 = await preprocessImage(dataUrl);
+            dbg("Preprocess OK " + (base64.length / 1024).toFixed(0) + "KB");
 
-              const unique = [
-                ...new Set(articleText.split("").filter(isChinese)),
-              ];
-              const lookup = {};
-              const BATCH = 50;
-              for (let i = 0; i < unique.length; i += BATCH) {
-                setLoadingMsg(
-                  `Looking up pinyin… ${Math.min(i + BATCH, unique.length)}/${unique.length} 🔍`,
-                );
-                const batch = unique.slice(i, i + BATCH);
-                const result = await apiLookup(batch);
-                Object.assign(lookup, result);
-              }
+            setLoadingMsg("Reading with Google Vision… 📖");
+            const articleText = await apiOcr(base64);
+            dbg("OCR OK " + articleText.length + " chars");
 
-              const arr = [];
-              for (const ch of articleText) {
-                if (ch === "\n") arr.push({ char: "\n", type: "break" });
-                else if (" \t\r".includes(ch)) continue;
-                else if (isPunct(ch)) arr.push({ char: ch, type: "punct" });
-                else if (isChinese(ch)) {
-                  const info = lookup[ch] || {};
-                  arr.push({
-                    char: ch,
-                    pinyin: info.pinyin || "?",
-                    meaning: info.meaning || "",
-                  });
-                } else arr.push({ char: ch, type: "latin" });
-              }
-              setParsedArticle(arr);
-              // Save to history (keep last 10, store thumbnail + first 40 chars of text)
-              const preview = articleText
-                .replace(/\s+/g, " ")
-                .trim()
-                .slice(0, 60);
-              const entry = {
-                id: Date.now(),
-                date: new Date().toLocaleDateString(),
-                preview,
-                thumb: dataUrl,
-                arr,
-              };
-              setArticleHistory((prev) =>
-                [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, 10),
+            const unique = [
+              ...new Set(articleText.split("").filter(isChinese)),
+            ];
+            const lookup = {};
+            const BATCH = 50;
+            for (let i = 0; i < unique.length; i += BATCH) {
+              setLoadingMsg(
+                `Looking up pinyin… ${Math.min(i + BATCH, unique.length)}/${unique.length} 🔍`,
               );
-              setScreen("reading");
-            } catch (err) {
-              console.error(err);
-              if (err.message === "SESSION_EXPIRED") {
-                onLogout();
-                return;
-              }
-              showToast("⚠️ " + (err.message || "Something went wrong"));
-            } finally {
-              setLoading(false);
+              const batch = unique.slice(i, i + BATCH);
+              const result = await apiLookup(batch);
+              Object.assign(lookup, result);
             }
-          };
-          reader.readAsDataURL(file);
+            dbg("Lookup OK " + Object.keys(lookup).length + " chars");
+
+            const arr = [];
+            for (const ch of articleText) {
+              if (ch === "\n") arr.push({ char: "\n", type: "break" });
+              else if (" \t\r".includes(ch)) continue;
+              else if (isPunct(ch)) arr.push({ char: ch, type: "punct" });
+              else if (isChinese(ch)) {
+                const info = lookup[ch] || {};
+                arr.push({
+                  char: ch,
+                  pinyin: info.pinyin || "?",
+                  meaning: info.meaning || "",
+                });
+              } else arr.push({ char: ch, type: "latin" });
+            }
+            setParsedArticle(arr);
+
+            // Tiny thumbnail to avoid blowing localStorage on mobile
+            const thumb = await makeThumbnail(dataUrl);
+            const preview = articleText
+              .replace(/[\s\n]+/g, " ")
+              .trim()
+              .slice(0, 60);
+            const entry = {
+              id: Date.now(),
+              date: new Date().toLocaleDateString(),
+              preview,
+              thumb,
+              arr,
+            };
+            setArticleHistory((prev) =>
+              [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, 10),
+            );
+            dbg("Done! " + arr.length + " tokens");
+            setScreen("reading");
+          } catch (err) {
+            dbg("ERROR: " + (err.message || String(err)), true);
+            console.error("handleFile:", err);
+            if (err.message === "SESSION_EXPIRED") {
+              onLogout();
+              return;
+            }
+            showToast("⚠️ " + (err.message || "Something went wrong"));
+          } finally {
+            setLoading(false);
+          }
         };
 
         const onDrop = useCallback((e) => {
@@ -2962,6 +3008,35 @@
             <div className={`toast ${toast.show ? "show" : ""}`}>
               {toast.msg}
             </div>
+            {showDebug && debugLog.length > 0 && (
+              <div className="debug-panel">
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 4,
+                  }}
+                >
+                  <strong>📱 Debug Log</strong>
+                  <button
+                    onClick={() => setShowDebug(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#aaa",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕ hide
+                  </button>
+                </div>
+                {debugLog.map((l, i) => (
+                  <div key={i} className={l.isErr ? "err" : "ok"}>
+                    {l.msg}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       }
