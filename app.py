@@ -1,6 +1,7 @@
 import os
+import functools
 import requests
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
 from pypinyin import pinyin, Style
 from dotenv import load_dotenv
@@ -8,9 +9,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-CORS(app)
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
+CORS(app, supports_credentials=True)
 
 GOOGLE_VISION_KEY = os.environ["GOOGLE_VISION_API_KEY"]
+APP_PASSWORD = os.environ["APP_PASSWORD"]  # set this in .env
 
 # ── Load CC-CEDICT dictionary ──────────────────────────────────────────────────
 CEDICT = {}
@@ -44,12 +47,45 @@ def load_cedict():
 load_cedict()
 
 
+# ── Auth helper ────────────────────────────────────────────────────────────────
+def require_auth(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("authenticated"):
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ── Serve frontend ─────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return send_from_directory("templates", "index.html")
 
 
+# ── Auth endpoints ─────────────────────────────────────────────────────────────
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    if data.get("password") == APP_PASSWORD:
+        session["authenticated"] = True
+        session.permanent = True
+        return jsonify({"ok": True})
+    return jsonify({"error": "Wrong password"}), 401
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+@app.route("/api/me")
+def me():
+    return jsonify({"authenticated": bool(session.get("authenticated"))})
+
+
+# ── OCR endpoint ───────────────────────────────────────────────────────────────
 @app.route("/api/ocr", methods=["POST"])
+@require_auth
 def ocr():
     data = request.get_json()
     image_base64 = data.get("image_base64")
@@ -79,7 +115,9 @@ def ocr():
     return jsonify({"text": annotation["text"].strip()})
 
 
+# ── Pinyin lookup endpoint ─────────────────────────────────────────────────────
 @app.route("/api/lookup", methods=["POST"])
+@require_auth
 def lookup():
     data = request.get_json()
     characters = data.get("characters", [])
@@ -98,6 +136,7 @@ def lookup():
     return jsonify({"lookup": result})
 
 
+# ── Health check ───────────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "cedict_entries": len(CEDICT)})

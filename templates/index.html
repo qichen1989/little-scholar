@@ -468,6 +468,94 @@
           font-size: 0.8rem;
         }
       }
+
+      /* Login screen */
+      .login-screen {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(
+          135deg,
+          #8b1a1a 0%,
+          #c0392b 50%,
+          #f0a500 100%
+        );
+        padding: 20px;
+      }
+      .login-card {
+        background: white;
+        border-radius: 28px;
+        padding: 40px 36px;
+        width: 100%;
+        max-width: 380px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+      .login-logo {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 3rem;
+        color: var(--red);
+        margin-bottom: 4px;
+      }
+      .login-subtitle {
+        font-family: "Fredoka One", cursive;
+        font-size: 1rem;
+        color: var(--ink-light);
+        margin-bottom: 32px;
+      }
+      .login-label {
+        font-family: "Fredoka One", cursive;
+        font-size: 0.85rem;
+        color: var(--ink-light);
+        text-align: left;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .login-input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 2px solid #e8ddd5;
+        font-size: 1.1rem;
+        outline: none;
+        font-family: "Noto Sans SC", sans-serif;
+        transition: border-color 0.2s;
+        margin-bottom: 20px;
+        letter-spacing: 0.1em;
+      }
+      .login-input:focus {
+        border-color: var(--red);
+      }
+      .login-btn {
+        width: 100%;
+        padding: 14px;
+        border-radius: 14px;
+        border: none;
+        background: linear-gradient(135deg, var(--red), #922b21);
+        color: white;
+        font-family: "Fredoka One", cursive;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition:
+          opacity 0.2s,
+          transform 0.2s;
+      }
+      .login-btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+      .login-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .login-error {
+        color: var(--red);
+        font-size: 0.85rem;
+        margin-top: 12px;
+        font-family: "Fredoka One", cursive;
+      }
     </style>
   </head>
   <body>
@@ -487,9 +575,11 @@
       async function apiOcr(base64) {
         const res = await fetch("/api/ocr", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image_base64: base64 }),
         });
+        if (res.status === 401) throw new Error("SESSION_EXPIRED");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "OCR failed");
         return data.text;
@@ -498,12 +588,36 @@
       async function apiLookup(characters) {
         const res = await fetch("/api/lookup", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ characters }),
         });
+        if (res.status === 401) throw new Error("SESSION_EXPIRED");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Lookup failed");
-        return data.lookup; // { "你": { pinyin: "nǐ", meaning: "you" }, ... }
+        return data.lookup;
+      }
+
+      async function apiCheckAuth() {
+        const res = await fetch("/api/me", { credentials: "include" });
+        const data = await res.json();
+        return data.authenticated;
+      }
+
+      async function apiLogin(password) {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Login failed");
+        return true;
+      }
+
+      async function apiLogout() {
+        await fetch("/api/logout", { method: "POST", credentials: "include" });
       }
 
       // ── Image preprocessing ────────────────────────────────────────────────────────
@@ -544,8 +658,98 @@
         });
       }
 
+      // ── Login Screen ──────────────────────────────────────────────────────────────
+      function LoginScreen({ onLogin }) {
+        const [password, setPassword] = useState("");
+        const [error, setError] = useState("");
+        const [loading, setLoading] = useState(false);
+
+        const handleSubmit = async (e) => {
+          e.preventDefault();
+          if (!password) return;
+          setLoading(true);
+          setError("");
+          try {
+            await apiLogin(password);
+            onLogin();
+          } catch (err) {
+            setError("Wrong password — try again! 🔒");
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        return (
+          <div className="login-screen">
+            <div className="login-card">
+              <div style={{ fontSize: "4rem", marginBottom: 8 }}>🏮</div>
+              <div className="login-logo">小学者</div>
+              <div className="login-subtitle">
+                Little Scholar — Chinese Reading App
+              </div>
+              <form onSubmit={handleSubmit}>
+                <label className="login-label">
+                  Enter your password to continue
+                </label>
+                <input
+                  className="login-input"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  className="login-btn"
+                  type="submit"
+                  disabled={loading || !password}
+                >
+                  {loading ? "Checking…" : "✨ Let me in!"}
+                </button>
+                {error && <div className="login-error">{error}</div>}
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Auth wrapper — owns the authed state so App() hooks are always called ──────
+      function Root() {
+        const [authed, setAuthed] = useState(null); // null=checking, false=login, true=app
+
+        useEffect(() => {
+          apiCheckAuth().then((ok) => setAuthed(ok));
+        }, []);
+
+        if (authed === null)
+          return (
+            <div
+              style={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg,#8B1A1A,#C0392B,#F0A500)",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "'Ma Shan Zheng',cursive",
+                  fontSize: "3rem",
+                  color: "white",
+                  opacity: 0.8,
+                }}
+              >
+                🏮
+              </div>
+            </div>
+          );
+        if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
+        return <App onLogout={() => setAuthed(false)} />;
+      }
+
       // ── Main App ───────────────────────────────────────────────────────────────────
-      function App() {
+      function App({ onLogout }) {
         const [screen, setScreen] = useState("home");
         const [parsedArticle, setParsedArticle] = useState(null);
         const [imageDataUrl, setImageDataUrl] = useState(null);
@@ -570,6 +774,13 @@
             return JSON.parse(localStorage.getItem("ls-mastered-data") || "{}");
           } catch {
             return {};
+          }
+        });
+        const [articleHistory, setArticleHistory] = useState(() => {
+          try {
+            return JSON.parse(localStorage.getItem("ls-history") || "[]");
+          } catch {
+            return [];
           }
         });
         const [quizState, setQuizState] = useState(null);
@@ -597,6 +808,9 @@
             JSON.stringify(masteredCharData),
           );
         }, [masteredCharData]);
+        useEffect(() => {
+          localStorage.setItem("ls-history", JSON.stringify(articleHistory));
+        }, [articleHistory]);
 
         const showToast = (msg) => {
           setToast({ msg, show: true });
@@ -648,9 +862,28 @@
                 } else arr.push({ char: ch, type: "latin" });
               }
               setParsedArticle(arr);
+              // Save to history (keep last 10, store thumbnail + first 40 chars of text)
+              const preview = articleText
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 60);
+              const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                preview,
+                thumb: dataUrl,
+                arr,
+              };
+              setArticleHistory((prev) =>
+                [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, 10),
+              );
               setScreen("reading");
             } catch (err) {
               console.error(err);
+              if (err.message === "SESSION_EXPIRED") {
+                onLogout();
+                return;
+              }
               showToast("⚠️ " + (err.message || "Something went wrong"));
             } finally {
               setLoading(false);
@@ -900,6 +1133,17 @@
         };
 
         // ── Screens ───────────────────────────────────────────────────────────────────
+        const loadArticle = (entry) => {
+          setParsedArticle(entry.arr);
+          setImageDataUrl(entry.thumb);
+          setScreen("reading");
+        };
+
+        const deleteHistory = (id, e) => {
+          e.stopPropagation();
+          setArticleHistory((prev) => prev.filter((h) => h.id !== id));
+        };
+
         const renderHome = () => (
           <div>
             <div className="welcome-banner">
@@ -925,6 +1169,7 @@
                 🏮🏮
               </div>
             </div>
+
             <div
               className="upload-area"
               onDrop={onDrop}
@@ -947,8 +1192,9 @@
                 onChange={(e) => handleFile(e.target.files[0])}
               />
             </div>
+
             {unknownCount > 0 && (
-              <div style={{ marginTop: 24, textAlign: "center" }}>
+              <div style={{ marginTop: 20, textAlign: "center" }}>
                 <p
                   style={{
                     color: "var(--ink-light)",
@@ -965,6 +1211,131 @@
                 >
                   📋 Review My Characters
                 </button>
+              </div>
+            )}
+
+            {articleHistory.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 14,
+                  }}
+                >
+                  <div className="section-title">
+                    🕐 Recent Articles ({articleHistory.length}/10)
+                  </div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#aaa",
+                      borderColor: "#ddd",
+                    }}
+                    onClick={() => {
+                      if (window.confirm("Clear all article history?"))
+                        setArticleHistory([]);
+                    }}
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                >
+                  {articleHistory.map((entry) => (
+                    <div
+                      key={entry.id}
+                      onClick={() => loadArticle(entry)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        background: "white",
+                        borderRadius: 16,
+                        padding: "12px 14px",
+                        boxShadow: "0 2px 10px rgba(0,0,0,0.07)",
+                        cursor: "pointer",
+                        border: "2px solid transparent",
+                        transition: "all 0.2s",
+                        position: "relative",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.borderColor = "var(--gold)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.borderColor = "transparent")
+                      }
+                    >
+                      {entry.thumb ? (
+                        <img
+                          src={entry.thumb}
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 10,
+                            objectFit: "cover",
+                            flexShrink: 0,
+                            border: "2px solid #f0e8e0",
+                          }}
+                          alt=""
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 10,
+                            background: "var(--bg)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "1.8rem",
+                            flexShrink: 0,
+                          }}
+                        >
+                          📄
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontFamily: "'Ma Shan Zheng',cursive",
+                            fontSize: "1.1rem",
+                            color: "var(--ink)",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            marginBottom: 3,
+                          }}
+                        >
+                          {entry.preview}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#aaa" }}>
+                          {entry.date}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => deleteHistory(entry.id, e)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#ccc",
+                          cursor: "pointer",
+                          fontSize: "1.1rem",
+                          padding: "4px 6px",
+                          flexShrink: 0,
+                          lineHeight: 1,
+                        }}
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -2100,6 +2471,16 @@
                 >
                   🎮 Quiz
                 </button>
+                <button
+                  className="nav-tab"
+                  style={{ borderColor: "#ccc", color: "#aaa" }}
+                  onClick={async () => {
+                    await apiLogout();
+                    onLogout();
+                  }}
+                >
+                  🚪
+                </button>
               </div>
             </div>
             {loading ? (
@@ -2139,7 +2520,7 @@
         );
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+      ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
     </script>
   </body>
 </html>
