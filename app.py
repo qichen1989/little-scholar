@@ -1,8 +1,4 @@
-import os
-import json
-import sqlite3
-import functools
-import requests
+import os, json, sqlite3, functools, requests
 from flask import Flask, request, jsonify, send_from_directory, session, g
 from flask_cors import CORS
 from pypinyin import pinyin, Style
@@ -15,14 +11,15 @@ app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
 CORS(app, supports_credentials=True)
 
 GOOGLE_VISION_KEY = os.environ["GOOGLE_VISION_API_KEY"]
-APP_PASSWORD = os.environ["APP_PASSWORD"]
-DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
+APP_PASSWORD      = os.environ["APP_PASSWORD"]
+DB_PATH           = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data.db"))
 
-# ── SQLite ─────────────────────────────────────────────────────────────────────
+# ── DB ──────────────────────────────────────────────────────────────────────────
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
+        g.db.execute("PRAGMA journal_mode=WAL")
     return g.db
 
 @app.teardown_appcontext
@@ -31,6 +28,8 @@ def close_db(e=None):
     if db: db.close()
 
 def init_db():
+    d = os.path.dirname(DB_PATH)
+    if d: os.makedirs(d, exist_ok=True)
     with sqlite3.connect(DB_PATH) as db:
         db.execute("""
             CREATE TABLE IF NOT EXISTS store (
@@ -43,40 +42,29 @@ def init_db():
 
 init_db()
 
-
-# ── CC-CEDICT dictionary ───────────────────────────────────────────────────────
+# ── CC-CEDICT ───────────────────────────────────────────────────────────────────
 CEDICT = {}
-
 def load_cedict():
-    dict_path = os.path.join(os.path.dirname(__file__), "cedict_ts.u8")
-    if not os.path.exists(dict_path):
-        print("WARNING: cedict_ts.u8 not found — meanings will be empty. See README.")
-        return
+    path = os.path.join(os.path.dirname(__file__), "cedict_ts.u8")
+    if not os.path.exists(path): print("WARNING: cedict_ts.u8 not found"); return
     count = 0
-    with open(dict_path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith("#"):
-                continue
+            if not line or line.startswith("#"): continue
             try:
                 parts = line.split(" ", 2)
                 simplified = parts[1]
-                rest = parts[2]
-                meanings = [m.strip() for m in rest.split("/") if m.strip() and not m.startswith("[")]
+                meanings = [m.strip() for m in parts[2].split("/") if m.strip() and not m.startswith("[")]
                 if meanings and simplified and simplified not in CEDICT:
-                    meaning = meanings[0]
-                    if len(meaning) > 40:
-                        meaning = meaning[:37] + "..."
-                    CEDICT[simplified] = meaning
+                    m = meanings[0]
+                    CEDICT[simplified] = m[:37]+"..." if len(m)>40 else m
                     count += 1
-            except Exception:
-                continue
+            except: continue
     print(f"Loaded {count} CEDICT entries")
-
 load_cedict()
 
-
-# ── Auth ───────────────────────────────────────────────────────────────────────
+# ── Auth ────────────────────────────────────────────────────────────────────────
 def require_auth(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
@@ -85,14 +73,10 @@ def require_auth(f):
         return f(*args, **kwargs)
     return decorated
 
-
-# ── Frontend ───────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return send_from_directory("templates", "index.html")
 
-
-# ── Auth endpoints ─────────────────────────────────────────────────────────────
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -111,21 +95,20 @@ def logout():
 def me():
     return jsonify({"authenticated": bool(session.get("authenticated"))})
 
-
-# ── Data sync endpoints ────────────────────────────────────────────────────────
-STORE_KEYS = ["unknownChars", "masteredChars", "masteredCharData", "articleHistory"]
+# ── Key-value store ─────────────────────────────────────────────────────────────
+# Stores: unknownChars, masteredChars, masteredCharData, articleHistory
+VALID_KEYS = {"unknownChars", "masteredChars", "masteredCharData", "articleHistory"}
 
 @app.route("/api/data", methods=["GET"])
 @require_auth
 def get_data():
     db = get_db()
-    result = {}
-    for key in STORE_KEYS:
-        row = db.execute("SELECT value FROM store WHERE key=?", (key,)).fetchone()
-        if row:
-            result[key] = json.loads(row["value"])
-        else:
-            result[key] = {} if key != "articleHistory" else []
+    rows = db.execute("SELECT key, value FROM store").fetchall()
+    result = {r["key"]: json.loads(r["value"]) for r in rows if r["key"] in VALID_KEYS}
+    # Fill defaults
+    for k in VALID_KEYS:
+        if k not in result:
+            result[k] = [] if k == "articleHistory" else {}
     return jsonify(result)
 
 @app.route("/api/data", methods=["POST"])
@@ -133,70 +116,53 @@ def get_data():
 def save_data():
     data = request.get_json()
     db = get_db()
-    for key in STORE_KEYS:
+    for key in VALID_KEYS:
         if key in data:
             db.execute(
-                "INSERT INTO store(key, value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                "INSERT INTO store(key,value) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                 (key, json.dumps(data[key], ensure_ascii=False))
             )
     db.commit()
     return jsonify({"ok": True})
 
-
-# ── OCR ────────────────────────────────────────────────────────────────────────
+# ── OCR ─────────────────────────────────────────────────────────────────────────
 @app.route("/api/ocr", methods=["POST"])
 @require_auth
 def ocr():
     data = request.get_json()
-    image_base64 = data.get("image_base64")
-    if not image_base64:
-        return jsonify({"error": "Missing image_base64"}), 400
-
+    b64 = data.get("image_base64")
+    if not b64: return jsonify({"error": "Missing image_base64"}), 400
     url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_VISION_KEY}"
-    payload = {
-        "requests": [{
-            "image": {"content": image_base64},
-            "features": [{"type": "DOCUMENT_TEXT_DETECTION", "maxResults": 1}],
-            "imageContext": {"languageHints": ["zh-Hans", "zh-Hant"]}
-        }]
-    }
+    payload = {"requests": [{"image": {"content": b64},
+        "features": [{"type": "DOCUMENT_TEXT_DETECTION", "maxResults": 1}],
+        "imageContext": {"languageHints": ["zh-Hans", "zh-Hant"]}}]}
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
     result = resp.json()
-
-    if "error" in result:
-        return jsonify({"error": result["error"]["message"]}), 500
+    if "error" in result: return jsonify({"error": result["error"]["message"]}), 500
     annotation = result["responses"][0].get("fullTextAnnotation")
-    if not annotation:
-        return jsonify({"error": "No text detected in image"}), 422
+    if not annotation: return jsonify({"error": "No text detected in image"}), 422
     return jsonify({"text": annotation["text"].strip()})
 
-
-# ── Pinyin lookup ──────────────────────────────────────────────────────────────
+# ── Lookup ──────────────────────────────────────────────────────────────────────
 @app.route("/api/lookup", methods=["POST"])
 @require_auth
 def lookup():
     data = request.get_json()
     characters = data.get("characters", [])
-    if not characters:
-        return jsonify({"lookup": {}}), 200
-
     result = {}
     for char in characters:
         py = pinyin(char, style=Style.TONE)
-        pinyin_str = " ".join([p[0] for p in py]) if py else ""
-        meaning = CEDICT.get(char, "")
-        if not meaning and len(char) > 1:
-            meaning = CEDICT.get(char[0], "")
-        result[char] = {"pinyin": pinyin_str, "meaning": meaning}
+        result[char] = {
+            "pinyin":  " ".join([p[0] for p in py]) if py else "",
+            "meaning": CEDICT.get(char, "")
+        }
     return jsonify({"lookup": result})
 
-
-# ── Health ─────────────────────────────────────────────────────────────────────
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok", "cedict_entries": len(CEDICT)})
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

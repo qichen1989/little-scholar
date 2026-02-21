@@ -193,6 +193,10 @@
         padding: 6px 14px;
         font-size: 0.85rem;
       }
+      .btn-xs {
+        padding: 4px 10px;
+        font-size: 0.78rem;
+      }
       .loading-card {
         background: white;
         border-radius: 20px;
@@ -333,15 +337,10 @@
       .quiz-card {
         background: white;
         border-radius: 28px;
-        padding: 40px 32px;
+        padding: 28px 32px;
         text-align: center;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        margin-bottom: 24px;
-        min-height: 260px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        margin-bottom: 16px;
         position: relative;
         overflow: hidden;
       }
@@ -351,7 +350,7 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 6px;
+        height: 4px;
         background: linear-gradient(
           90deg,
           var(--red),
@@ -456,20 +455,66 @@
         padding: 60px 20px;
         color: var(--ink-light);
       }
-      @media (max-width: 500px) {
-        .char-zh {
-          font-size: 1.3rem;
-        }
-        .quiz-char {
-          font-size: 4rem;
-        }
-        .nav-tab {
-          padding: 6px 10px;
-          font-size: 0.8rem;
-        }
+      /* history */
+      .history-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
       }
-
-      /* TTS player bar */
+      .history-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+        position: relative;
+      }
+      .history-card:hover {
+        border-color: var(--gold);
+        transform: translateY(-3px);
+      }
+      .history-thumb {
+        width: 100%;
+        height: 80px;
+        object-fit: cover;
+        background: #f0e8e0;
+      }
+      .history-info {
+        padding: 8px 10px;
+      }
+      .history-preview {
+        font-size: 0.78rem;
+        color: var(--ink);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      .history-date {
+        font-size: 0.7rem;
+        color: var(--ink-light);
+        margin-top: 4px;
+      }
+      .history-del {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: rgba(0, 0, 0, 0.4);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* TTS */
       .tts-bar {
         position: sticky;
         bottom: 16px;
@@ -501,10 +546,6 @@
       }
       .tts-btn:hover {
         transform: scale(1.1);
-      }
-      .tts-btn.secondary {
-        background: var(--gold);
-        font-size: 1rem;
       }
       .tts-progress {
         flex: 1;
@@ -545,30 +586,15 @@
         font-size: 0.72rem;
         color: var(--ink-light);
         font-family: "Fredoka One", cursive;
-      }
-      .tts-speed {
         display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.8rem;
-        color: var(--ink-light);
-      }
-      .tts-speed select {
-        border: 2px solid #e8ddd5;
-        border-radius: 8px;
-        padding: 4px 8px;
-        font-family: "Fredoka One", cursive;
-        font-size: 0.8rem;
-        background: white;
-        cursor: pointer;
+        justify-content: space-between;
       }
       .char-block.speaking {
         background: rgba(240, 165, 0, 0.3);
         border-radius: 6px;
         transform: scale(1.15);
       }
-
-      /* Login screen */
+      /* Login */
       .login-screen {
         min-height: 100vh;
         display: flex;
@@ -596,20 +622,6 @@
         font-size: 3rem;
         color: var(--red);
         margin-bottom: 4px;
-      }
-      .login-subtitle {
-        font-family: "Fredoka One", cursive;
-        font-size: 1rem;
-        color: var(--ink-light);
-        margin-bottom: 32px;
-      }
-      .login-label {
-        font-family: "Fredoka One", cursive;
-        font-size: 0.85rem;
-        color: var(--ink-light);
-        text-align: left;
-        display: block;
-        margin-bottom: 6px;
       }
       .login-input {
         width: 100%;
@@ -649,11 +661,17 @@
         cursor: not-allowed;
         transform: none;
       }
-      .login-error {
-        color: var(--red);
-        font-size: 0.85rem;
-        margin-top: 12px;
-        font-family: "Fredoka One", cursive;
+      @media (max-width: 500px) {
+        .char-zh {
+          font-size: 1.3rem;
+        }
+        .quiz-char {
+          font-size: 4rem;
+        }
+        .nav-tab {
+          padding: 6px 10px;
+          font-size: 0.8rem;
+        }
       }
     </style>
   </head>
@@ -662,94 +680,72 @@
     <script type="text/babel">
       const { useState, useRef, useCallback, useEffect } = React;
 
-      const STORAGE = { unknown: "ls-unknown", mastered: "ls-mastered" };
       const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
       const isChinese = (ch) => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
       const isPunct = (ch) =>
-        /[\uff0c\u3002\uff01\uff1f\u3001\uff1b\uff1a\u201c\u201d\u2018\u2019\u300c\u300d\u3010\u3011\uff08\uff09\u2026\u2014\u00b7.,!?;:()/\[\]]/.test(
+        /[\uff0c\u3002\uff01\uff1f\u3001\uff1b\uff1a\u201c\u201d\u2018\u2019\u300c\u300d\u3010\u3011\uff08\uff09\u2026\u2014\u00b7.,!?;:()\\/\[\]]/.test(
           ch,
         );
 
-      // ── API helpers ────────────────────────────────────────────────────────────────
-      async function apiOcr(base64) {
-        const res = await fetch("/api/ocr", {
-          method: "POST",
+      // ── API ────────────────────────────────────────────────────────────────────────
+      const apiFetch = async (url, opts = {}) => {
+        const res = await fetch(url, {
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_base64: base64 }),
+          ...opts,
+          headers: {
+            "Content-Type": "application/json",
+            ...(opts.headers || {}),
+          },
         });
         if (res.status === 401) throw new Error("SESSION_EXPIRED");
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "OCR failed");
-        return data.text;
-      }
+        return res;
+      };
+      const apiJson = async (url, opts = {}) => {
+        const r = await apiFetch(url, opts);
+        return r.json();
+      };
 
-      async function apiLookup(characters) {
-        const res = await fetch("/api/lookup", {
+      const apiLogin = (pw) =>
+        apiFetch("/api/login", {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ characters }),
+          body: JSON.stringify({ password: pw }),
+        }).then((r) => {
+          if (!r.ok) throw new Error("wrong");
         });
-        if (res.status === 401) throw new Error("SESSION_EXPIRED");
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Lookup failed");
-        return data.lookup;
-      }
-
-      async function apiCheckAuth() {
-        const res = await fetch("/api/me", { credentials: "include" });
-        const data = await res.json();
-        return data.authenticated;
-      }
-
-      async function apiLogin(password) {
-        const res = await fetch("/api/login", {
+      const apiLogout = () => apiFetch("/api/logout", { method: "POST" });
+      const apiCheckAuth = () =>
+        apiJson("/api/me").then((d) => d.authenticated);
+      const apiLoad = () => apiJson("/api/data");
+      const apiSave = (d) =>
+        apiFetch("/api/data", { method: "POST", body: JSON.stringify(d) });
+      const apiLookup = (chars) =>
+        apiJson("/api/lookup", {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Login failed");
-        return true;
-      }
-
-      async function apiLogout() {
-        await fetch("/api/logout", { method: "POST", credentials: "include" });
-      }
-
-      async function apiLoadData() {
-        const res = await fetch("/api/data", { credentials: "include" });
-        if (res.status === 401) throw new Error("SESSION_EXPIRED");
-        return res.json();
-      }
-
-      async function apiSaveData(payload) {
-        const res = await fetch("/api/data", {
+          body: JSON.stringify({ characters: chars }),
+        }).then((d) => d.lookup || {});
+      const apiOcr = (b64) =>
+        apiJson("/api/ocr", {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ image_base64: b64 }),
+        }).then((d) => {
+          if (d.error) throw new Error(d.error);
+          return d.text;
         });
-        if (res.status === 401) throw new Error("SESSION_EXPIRED");
-      }
 
-      // ── Image preprocessing ────────────────────────────────────────────────────────
+      // ── Image helpers ──────────────────────────────────────────────────────────────
       function preprocessImage(dataUrl) {
         return new Promise((resolve, reject) => {
           const img = new Image();
           img.onerror = () => reject(new Error("Could not load image"));
           img.onload = () => {
             try {
-              // Keep longest side to 1000px max — safe on all mobile browsers
               const MAX = 1000;
               let w = img.width,
                 h = img.height;
               if (Math.max(w, h) > MAX) {
-                const scale = MAX / Math.max(w, h);
-                w = Math.round(w * scale);
-                h = Math.round(h * scale);
+                const s = MAX / Math.max(w, h);
+                w = Math.round(w * s);
+                h = Math.round(h * s);
               }
               const canvas = document.createElement("canvas");
               canvas.width = w;
@@ -758,120 +754,126 @@
               ctx.imageSmoothingEnabled = true;
               ctx.imageSmoothingQuality = "high";
               ctx.drawImage(img, 0, 0, w, h);
-              // JPEG at 0.7 quality — keeps base64 under ~200KB for Vision API
               resolve(canvas.toDataURL("image/jpeg", 0.7).split(",")[1]);
-            } catch (err) {
-              reject(err);
+            } catch (e) {
+              reject(e);
             }
           };
           img.src = dataUrl;
         });
       }
-
-      // ── Tiny thumbnail for history (max 120px, ~3KB) ───────────────────────────────
       function makeThumbnail(dataUrl) {
         return new Promise((resolve) => {
           const img = new Image();
           img.onload = () => {
-            const MAX = 120;
-            const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.round(img.width * scale);
-            canvas.height = Math.round(img.height * scale);
-            canvas
-              .getContext("2d")
-              .drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL("image/jpeg", 0.6));
+            const MAX = 120,
+              s = Math.min(1, MAX / Math.max(img.width, img.height));
+            const c = document.createElement("canvas");
+            c.width = Math.round(img.width * s);
+            c.height = Math.round(img.height * s);
+            c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL("image/jpeg", 0.6));
           };
           img.onerror = () => resolve(null);
           img.src = dataUrl;
         });
       }
 
-      // ── Login Screen ──────────────────────────────────────────────────────────────
+      // ── Login ──────────────────────────────────────────────────────────────────────
       function LoginScreen({ onLogin }) {
-        const [password, setPassword] = useState("");
-        const [error, setError] = useState("");
-        const [loading, setLoading] = useState(false);
-
-        const handleSubmit = async (e) => {
+        const [pw, setPw] = useState("");
+        const [err, setErr] = useState("");
+        const [busy, setBusy] = useState(false);
+        const submit = async (e) => {
           e.preventDefault();
-          if (!password) return;
-          setLoading(true);
-          setError("");
+          if (!pw) return;
+          setBusy(true);
+          setErr("");
           try {
-            await apiLogin(password);
+            await apiLogin(pw);
             onLogin();
-          } catch (err) {
-            setError("Wrong password — try again! 🔒");
+          } catch {
+            setErr("Wrong password — try again! 🔒");
           } finally {
-            setLoading(false);
+            setBusy(false);
           }
         };
-
         return (
           <div className="login-screen">
             <div className="login-card">
               <div style={{ fontSize: "4rem", marginBottom: 8 }}>🏮</div>
               <div className="login-logo">小学者</div>
-              <div className="login-subtitle">
+              <div
+                style={{
+                  fontFamily: "'Fredoka One',cursive",
+                  fontSize: "1rem",
+                  color: "var(--ink-light)",
+                  marginBottom: 32,
+                }}
+              >
                 Little Scholar — Chinese Reading App
               </div>
-              <form onSubmit={handleSubmit}>
-                <label className="login-label">
-                  Enter your password to continue
+              <form onSubmit={submit}>
+                <label
+                  style={{
+                    display: "block",
+                    textAlign: "left",
+                    fontFamily: "'Fredoka One',cursive",
+                    fontSize: "0.85rem",
+                    color: "var(--ink-light)",
+                    marginBottom: 6,
+                  }}
+                >
+                  Password
                 </label>
                 <input
                   className="login-input"
                   type="password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={pw}
+                  onChange={(e) => setPw(e.target.value)}
                   autoFocus
                 />
-                <button
-                  className="login-btn"
-                  type="submit"
-                  disabled={loading || !password}
-                >
-                  {loading ? "Checking…" : "✨ Let me in!"}
+                <button className="login-btn" type="submit" disabled={busy}>
+                  {busy ? "Checking…" : "Enter 🏮"}
                 </button>
-                {error && <div className="login-error">{error}</div>}
               </form>
+              {err && (
+                <div
+                  style={{
+                    color: "var(--red)",
+                    fontSize: "0.85rem",
+                    marginTop: 12,
+                    fontFamily: "'Fredoka One',cursive",
+                  }}
+                >
+                  {err}
+                </div>
+              )}
             </div>
           </div>
         );
       }
 
-      // ── Auth wrapper — owns the authed state so App() hooks are always called ──────
       function Root() {
-        const [authed, setAuthed] = useState(null); // null=checking, false=login, true=app
-
+        const [authed, setAuthed] = useState(null);
         useEffect(() => {
-          apiCheckAuth().then((ok) => setAuthed(ok));
+          apiCheckAuth()
+            .then((ok) => setAuthed(ok))
+            .catch(() => setAuthed(false));
         }, []);
-
         if (authed === null)
           return (
             <div
               style={{
-                minHeight: "100vh",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "linear-gradient(135deg,#8B1A1A,#C0392B,#F0A500)",
+                height: "100vh",
+                fontSize: "3rem",
               }}
             >
-              <div
-                style={{
-                  fontFamily: "'Ma Shan Zheng',cursive",
-                  fontSize: "3rem",
-                  color: "white",
-                  opacity: 0.8,
-                }}
-              >
-                🏮
-              </div>
+              🏮
             </div>
           );
         if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
@@ -882,7 +884,6 @@
       function App({ onLogout }) {
         const [screen, setScreen] = useState("home");
         const [parsedArticle, setParsedArticle] = useState(null);
-        const [imageDataUrl, setImageDataUrl] = useState(null);
         const [loading, setLoading] = useState(false);
         const [loadingMsg, setLoadingMsg] = useState("");
         const [unknownChars, setUnknownChars] = useState({});
@@ -891,68 +892,34 @@
         const [articleHistory, setArticleHistory] = useState([]);
         const [quizState, setQuizState] = useState(null);
         const [toast, setToast] = useState({ msg: "", show: false });
-
         const [tooltip, setTooltip] = useState({
           visible: false,
           char: null,
           x: 0,
           y: 0,
         });
+        const [dataReady, setDataReady] = useState(false);
+
+        const fileRef = useRef();
         const canvasRef = useRef();
         const isDrawing = useRef(false);
         const lastPos = useRef(null);
-        const fileRef = useRef();
+        const saveTimer = useRef(null);
+
+        // TTS
         const [tts, setTts] = useState({
           playing: false,
           sentenceIdx: -1,
           rate: 0.8,
           voiceURI: "",
         });
-        const [availableVoices, setAvailableVoices] = useState([]);
-        const ttsToken = useRef(0); // incremented on every stop — stale closures self-abort
-
-        // ── Server sync ──────────────────────────────────────────────────────────────
-        const [dataReady, setDataReady] = useState(false);
-        const saveTimer = useRef(null);
-
-        // Load from server on mount
-        useEffect(() => {
-          apiLoadData()
-            .then((data) => {
-              if (data.unknownChars) setUnknownChars(data.unknownChars);
-              if (data.masteredChars) setMasteredChars(data.masteredChars);
-              if (data.masteredCharData)
-                setMasteredCharData(data.masteredCharData);
-              if (data.articleHistory) setArticleHistory(data.articleHistory);
-            })
-            .catch((err) => {
-              if (err.message === "SESSION_EXPIRED") onLogout();
-            })
-            .finally(() => setDataReady(true));
-        }, []);
-
-        // Debounced save — fires 1.5s after the last change
-        const scheduleSave = useCallback(
-          (payload) => {
-            if (!dataReady) return;
-            if (saveTimer.current) clearTimeout(saveTimer.current);
-            saveTimer.current = setTimeout(() => {
-              apiSaveData(payload).catch((err) => {
-                if (err.message === "SESSION_EXPIRED") onLogout();
-              });
-            }, 1500);
-          },
-          [dataReady],
-        );
-
-        useEffect(() => {
-          scheduleSave({
-            unknownChars,
-            masteredChars,
-            masteredCharData,
-            articleHistory,
-          });
-        }, [unknownChars, masteredChars, masteredCharData, articleHistory]);
+        const [voices, setVoices] = useState([]);
+        const ttsToken = useRef(0);
+        const sentencesCache = useRef([]);
+        const sentenceMap = useRef({});
+        const SENT_ENDS = /[。！？…]/;
+        const BAD_VOICE = /cantonese|yue|zh[-_]hk/i;
+        const GOOD_VOICE = /mandarin|putonghua|普通话|国语/i;
 
         const showToast = (msg) => {
           setToast({ msg, show: true });
@@ -960,42 +927,68 @@
         };
         const unknownCount = Object.keys(unknownChars).length;
 
+        // ── Load from server ─────────────────────────────────────────────────────────
+        useEffect(() => {
+          apiLoad()
+            .then((d) => {
+              if (d.unknownChars) setUnknownChars(d.unknownChars);
+              if (d.masteredChars) setMasteredChars(d.masteredChars);
+              if (d.masteredCharData) setMasteredCharData(d.masteredCharData);
+              if (d.articleHistory) setArticleHistory(d.articleHistory);
+            })
+            .catch((e) => {
+              if (e.message === "SESSION_EXPIRED") onLogout();
+            })
+            .finally(() => setDataReady(true));
+        }, []);
+
+        // ── Auto-save (debounced) ────────────────────────────────────────────────────
+        useEffect(() => {
+          if (!dataReady) return;
+          if (saveTimer.current) clearTimeout(saveTimer.current);
+          saveTimer.current = setTimeout(() => {
+            apiSave({
+              unknownChars,
+              masteredChars,
+              masteredCharData,
+              articleHistory,
+            }).catch((e) => {
+              if (e.message === "SESSION_EXPIRED") onLogout();
+            });
+          }, 1500);
+        }, [
+          unknownChars,
+          masteredChars,
+          masteredCharData,
+          articleHistory,
+          dataReady,
+        ]);
+
         // ── File handling ────────────────────────────────────────────────────────────
         const handleFile = async (file) => {
           if (!file) return;
           setLoading(true);
           try {
-            // Read file — proper Promise wrapper so errors are catchable
-            const dataUrl = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = (e) => resolve(e.target.result);
-              reader.onerror = () => reject(new Error("FileReader failed"));
-              reader.readAsDataURL(file);
+            const dataUrl = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = (e) => res(e.target.result);
+              r.onerror = () => rej(new Error("Read failed"));
+              r.readAsDataURL(file);
             });
-            setImageDataUrl(dataUrl);
-
             setLoadingMsg("Enhancing image… ✨");
             const base64 = await preprocessImage(dataUrl);
-
             setLoadingMsg("Reading with Google Vision… 📖");
-            const articleText = await apiOcr(base64);
-
-            const unique = [
-              ...new Set(articleText.split("").filter(isChinese)),
-            ];
+            const text = await apiOcr(base64);
+            const unique = [...new Set(text.split("").filter(isChinese))];
             const lookup = {};
-            const BATCH = 50;
-            for (let i = 0; i < unique.length; i += BATCH) {
+            for (let i = 0; i < unique.length; i += 50) {
               setLoadingMsg(
-                `Looking up pinyin… ${Math.min(i + BATCH, unique.length)}/${unique.length} 🔍`,
+                `Looking up pinyin… ${Math.min(i + 50, unique.length)}/${unique.length} 🔍`,
               );
-              const batch = unique.slice(i, i + BATCH);
-              const result = await apiLookup(batch);
-              Object.assign(lookup, result);
+              Object.assign(lookup, await apiLookup(unique.slice(i, i + 50)));
             }
-
             const arr = [];
-            for (const ch of articleText) {
+            for (const ch of text) {
               if (ch === "\n") arr.push({ char: "\n", type: "break" });
               else if (" \t\r".includes(ch)) continue;
               else if (isPunct(ch)) arr.push({ char: ch, type: "punct" });
@@ -1009,10 +1002,8 @@
               } else arr.push({ char: ch, type: "latin" });
             }
             setParsedArticle(arr);
-
-            // Tiny thumbnail to avoid blowing localStorage on mobile
             const thumb = await makeThumbnail(dataUrl);
-            const preview = articleText
+            const preview = text
               .replace(/[\s\n]+/g, " ")
               .trim()
               .slice(0, 60);
@@ -1027,13 +1018,12 @@
               [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, 10),
             );
             setScreen("reading");
-          } catch (err) {
-            console.error("handleFile:", err);
-            if (err.message === "SESSION_EXPIRED") {
+          } catch (e) {
+            if (e.message === "SESSION_EXPIRED") {
               onLogout();
               return;
             }
-            showToast("⚠️ " + (err.message || "Something went wrong"));
+            showToast("⚠️ " + (e.message || "Something went wrong"));
           } finally {
             setLoading(false);
           }
@@ -1041,13 +1031,18 @@
 
         const onDrop = useCallback((e) => {
           e.preventDefault();
-          const file = e.dataTransfer.files[0];
-          if (file?.type.startsWith("image/")) handleFile(file);
+          const f = e.dataTransfer.files[0];
+          if (f?.type.startsWith("image/")) handleFile(f);
         }, []);
 
-        // ── Character management ─────────────────────────────────────────────────────
+        // ── Char management ──────────────────────────────────────────────────────────
         const toggleUnknown = (item) => {
-          if (!item.char || item.type === "punct" || item.type === "break")
+          if (
+            !item.char ||
+            item.type === "punct" ||
+            item.type === "break" ||
+            item.type === "latin"
+          )
             return;
           setUnknownChars((prev) => {
             const next = { ...prev };
@@ -1065,10 +1060,11 @@
             return next;
           });
         };
+
         const markMastered = (key) => {
-          const charInfo = unknownChars[key] || {};
+          const info = unknownChars[key] || {};
           setMasteredChars((prev) => ({ ...prev, [key]: true }));
-          setMasteredCharData((prev) => ({ ...prev, [key]: charInfo }));
+          setMasteredCharData((prev) => ({ ...prev, [key]: info }));
           setUnknownChars((prev) => {
             const n = { ...prev };
             delete n[key];
@@ -1078,6 +1074,7 @@
             `🌟 "${key}" mastered — will appear occasionally in quizzes!`,
           );
         };
+
         const removeChar = (key) => {
           setUnknownChars((prev) => {
             const n = { ...prev };
@@ -1089,10 +1086,15 @@
             delete n[key];
             return n;
           });
+          setMasteredCharData((prev) => {
+            const n = { ...prev };
+            delete n[key];
+            return n;
+          });
         };
 
-        // ── Quiz (with spaced repetition for mastered chars) ─────────────────────────
-        const REVIEW_RATE = 0.25; // ~1 in 4 questions is a mastered review card
+        // ── Quiz ─────────────────────────────────────────────────────────────────────
+        const REVIEW_RATE = 0.25;
 
         const buildQuestionList = () => {
           const active = shuffle(Object.values(unknownChars));
@@ -1118,19 +1120,17 @@
           return result;
         };
 
-        const buildOptions = (correct, pool, type) =>
+        const buildOptions = (correct, pool) =>
           shuffle([
             correct,
             ...shuffle(pool.filter((c) => c.char !== correct.char)).slice(0, 3),
           ]);
 
         const startQuiz = (type) => {
-          const chars = Object.values(unknownChars);
-          if (chars.length < 2) {
+          if (unknownCount < 2) {
             showToast("Add at least 2 characters first!");
             return;
           }
-          const questions = buildQuestionList();
           const pool = [
             ...Object.values(unknownChars),
             ...Object.keys(masteredChars).map((k) => ({
@@ -1138,72 +1138,22 @@
               ...(masteredCharData[k] || {}),
             })),
           ];
+          const questions = buildQuestionList();
           setQuizState({
             type,
             questions,
             current: 0,
             answers: [],
-            options: buildOptions(questions[0], pool, type),
+            options: buildOptions(questions[0], pool),
             revealed: false,
             selectedOption: null,
+            done: false,
             pool,
           });
         };
 
-        const handleAnswer = (chosen) => {
-          const { questions, current, type, answers, pool } = quizState;
-          const correct = questions[current];
-          const isCorrect =
-            type === "pinyin"
-              ? chosen.pinyin === correct.pinyin
-              : chosen.meaning === correct.meaning;
-          const newAnswers = [
-            ...answers,
-            {
-              correct: isCorrect,
-              char: correct.char,
-              isReview: correct.isReview,
-            },
-          ];
-          // Step 1: show feedback on the CURRENT question (don't advance current yet)
-          setQuizState((p) => ({
-            ...p,
-            answers: newAnswers,
-            selectedOption: isCorrect ? "correct" : "wrong",
-            chosenChar: chosen.char,
-          }));
-          // Step 2: after delay, advance to next question
-          setTimeout(() => {
-            setQuizState((p) => {
-              if (!p) return p;
-              const next = current + 1;
-              if (next >= questions.length)
-                return {
-                  ...p,
-                  done: true,
-                  selectedOption: null,
-                  chosenChar: null,
-                };
-              return {
-                ...p,
-                current: next,
-                options: buildOptions(questions[next], pool, type),
-                selectedOption: null,
-                chosenChar: null,
-                revealed: false,
-              };
-            });
-          }, 850);
-        };
-
-        const handleFlashcard = (knew) => {
-          const { questions, current, answers, pool, type } = quizState;
-          const item = questions[current];
-          const newAnswers = [
-            ...answers,
-            { correct: knew, char: item.char, isReview: item.isReview },
-          ];
-          clearCanvas();
+        const advanceQuiz = (newAnswers, isCorrect) => {
+          const { questions, current, type, pool } = quizState;
           const next = current + 1;
           if (next >= questions.length) {
             setQuizState((p) => ({ ...p, answers: newAnswers, done: true }));
@@ -1213,19 +1163,63 @@
             ...p,
             answers: newAnswers,
             current: next,
-            options: buildOptions(questions[next], pool, type),
+            options: buildOptions(questions[next], pool),
             revealed: false,
-            selectedOption: null,
+            selectedOption:
+              isCorrect !== undefined
+                ? isCorrect
+                  ? "correct"
+                  : "wrong"
+                : null,
           }));
+          if (isCorrect !== undefined)
+            setTimeout(
+              () =>
+                setQuizState((p) => (p ? { ...p, selectedOption: null } : p)),
+              700,
+            );
         };
 
-        // ── Canvas ────────────────────────────────────────────────────────────────────
-        const getPos = (e, canvas) => {
-          const r = canvas.getBoundingClientRect();
-          const s = e.touches ? e.touches[0] : e;
+        const handleAnswer = (chosen) => {
+          const { questions, current, type, answers } = quizState;
+          const correct = questions[current];
+          const isCorrect =
+            type === "pinyin"
+              ? chosen.pinyin === correct.pinyin
+              : chosen.meaning === correct.meaning;
+          advanceQuiz(
+            [
+              ...answers,
+              {
+                correct: isCorrect,
+                char: correct.char,
+                isReview: correct.isReview,
+              },
+            ],
+            isCorrect,
+          );
+        };
+
+        const handleFlashcard = (knew) => {
+          const { questions, current, answers } = quizState;
+          const item = questions[current];
+          clearCanvas();
+          advanceQuiz(
+            [
+              ...answers,
+              { correct: knew, char: item.char, isReview: item.isReview },
+            ],
+            undefined,
+          );
+        };
+
+        // ── Canvas ───────────────────────────────────────────────────────────────────
+        const getPos = (e, c) => {
+          const r = c.getBoundingClientRect(),
+            s = e.touches ? e.touches[0] : e;
           return {
-            x: (s.clientX - r.left) * (canvas.width / r.width),
-            y: (s.clientY - r.top) * (canvas.height / r.height),
+            x: (s.clientX - r.left) * (c.width / r.width),
+            y: (s.clientY - r.top) * (c.height / r.height),
           };
         };
         const startDraw = (e) => {
@@ -1280,11 +1274,6 @@
         };
 
         // ── TTS ──────────────────────────────────────────────────────────────────────
-        const SENT_ENDS = /[。！？…]/;
-        const BAD_VOICE = /cantonese|yue|zh[-_]hk/i;
-        const GOOD_VOICE = /mandarin|putonghua|普通话|国语/i;
-
-        // Load & filter available Chinese voices
         const loadVoices = useCallback(() => {
           const all = window.speechSynthesis.getVoices();
           const zh = all.filter(
@@ -1293,9 +1282,8 @@
               !BAD_VOICE.test(v.name) &&
               !BAD_VOICE.test(v.lang),
           );
-          if (zh.length === 0) return;
-          setAvailableVoices(zh);
-          // Auto-select best default if none chosen yet
+          if (!zh.length) return;
+          setVoices(zh);
           setTts((t) => {
             if (t.voiceURI) return t;
             const best =
@@ -1305,7 +1293,6 @@
             return { ...t, voiceURI: best.voiceURI };
           });
         }, []);
-
         useEffect(() => {
           loadVoices();
           window.speechSynthesis.onvoiceschanged = loadVoices;
@@ -1314,163 +1301,144 @@
           };
         }, [loadVoices]);
 
-        // Hard stop — increment token so any in-flight speakNext calls self-abort
         const ttsStop = useCallback(() => {
           ttsToken.current += 1;
           window.speechSynthesis.cancel();
-          // Chrome sometimes needs a nudge
           setTimeout(() => window.speechSynthesis.cancel(), 50);
           setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
         }, []);
 
-        // Build sentences from parsedArticle
-        const buildSentences = (article) => {
-          const sentences = [];
-          let cur = { text: "", startIdx: 0, endIdx: 0 };
-          let si = 0;
-          article.forEach((item, i) => {
+        const buildSentences = (art) => {
+          const sents = [];
+          let cur = { text: "", si: 0 },
+            si = 0;
+          art.forEach((item) => {
             if (!item.char || item.type === "break") return;
             if (item.type === "punct") {
               cur.text += item.char;
               if (SENT_ENDS.test(item.char) && cur.text.trim()) {
-                sentences.push({ ...cur, si: si++ });
-                cur = { text: "", startIdx: i + 1, endIdx: i + 1 };
+                sents.push({ ...cur });
+                cur = { text: "", si: ++si };
               }
-            } else if (!item.type) {
-              cur.text += item.char;
-              cur.endIdx = i;
-            }
+            } else if (!item.type) cur.text += item.char;
           });
-          if (cur.text.trim()) sentences.push({ ...cur, si: si });
-          return sentences;
+          if (cur.text.trim()) sents.push(cur);
+          return sents;
         };
 
-        const ttsSpeak = useCallback(() => {
-          if (!parsedArticle) return;
-
-          // Stop any current playback first
-          ttsToken.current += 1;
-          const myToken = ttsToken.current;
-          window.speechSynthesis.cancel();
-
-          const sentences = buildSentences(parsedArticle);
-          if (!sentences.length) return;
-
-          const voices = window.speechSynthesis.getVoices();
-          const chosenVoice =
-            voices.find((v) => v.voiceURI === tts.voiceURI) || null;
-
-          let pos = 0;
-          setTts((t) => ({ ...t, playing: true, sentenceIdx: 0 }));
-
-          const speakNext = () => {
-            // Abort if a newer play session has started or stop was pressed
-            if (ttsToken.current !== myToken) return;
-            if (pos >= sentences.length) {
-              setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
-              return;
-            }
-            const sentence = sentences[pos];
-            setTts((t) => ({ ...t, sentenceIdx: sentence.si }));
-
-            const utt = new SpeechSynthesisUtterance(sentence.text);
-            utt.lang = "zh-CN";
-            utt.rate = tts.rate;
-            if (chosenVoice) utt.voice = chosenVoice;
-
-            utt.onend = () => {
-              if (ttsToken.current !== myToken) return; // stale — abort
-              pos++;
-              speakNext();
-            };
-            utt.onerror = (e) => {
-              if (e.error === "interrupted" || e.error === "canceled") return; // expected on stop
-              if (ttsToken.current !== myToken) return;
-              pos++;
-              speakNext();
-            };
-            window.speechSynthesis.speak(utt);
-          };
-
-          speakNext();
-        }, [parsedArticle, tts.rate, tts.voiceURI]);
-
-        useEffect(() => {
-          return () => {
-            ttsToken.current += 1;
-            window.speechSynthesis.cancel();
-          };
-        }, [parsedArticle]);
-
-        // Cache sentences so seek can use them without rebuilding
-        const sentencesCache = useRef([]);
-        useEffect(() => {
-          if (parsedArticle)
-            sentencesCache.current = buildSentences(parsedArticle);
-        }, [parsedArticle]);
-
-        const ttsSeek = useCallback(
-          (e) => {
+        const doSpeak = useCallback(
+          (startPos = 0) => {
             if (!parsedArticle) return;
-            const bar = e.currentTarget;
-            const rect = bar.getBoundingClientRect();
-            const clickX =
-              (e.clientX || e.touches?.[0]?.clientX || rect.left) - rect.left;
-            const pct = Math.max(0, Math.min(1, clickX / rect.width));
-            const sentences = sentencesCache.current;
-            if (!sentences.length) return;
-            const targetPos = Math.floor(pct * sentences.length);
-
-            // Stop current, then wait for Chrome to fully process cancel before starting
             ttsToken.current += 1;
             const myToken = ttsToken.current;
             window.speechSynthesis.cancel();
-
-            const voices = window.speechSynthesis.getVoices();
-            const chosenVoice =
-              voices.find((v) => v.voiceURI === tts.voiceURI) || null;
-            let pos = targetPos;
+            const sents = sentencesCache.current;
+            if (!sents.length) return;
+            const voice =
+              window.speechSynthesis
+                .getVoices()
+                .find((v) => v.voiceURI === tts.voiceURI) || null;
+            let pos = startPos;
             setTts((t) => ({
               ...t,
               playing: true,
-              sentenceIdx: sentences[targetPos]?.si ?? 0,
+              sentenceIdx: sents[startPos]?.si ?? 0,
             }));
-
-            const speakNext = () => {
+            const next = () => {
               if (ttsToken.current !== myToken) return;
-              if (pos >= sentences.length) {
+              if (pos >= sents.length) {
                 setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
                 return;
               }
-              const sentence = sentences[pos];
-              setTts((t) => ({ ...t, sentenceIdx: sentence.si }));
-              const utt = new SpeechSynthesisUtterance(sentence.text);
+              const s = sents[pos];
+              setTts((t) => ({ ...t, sentenceIdx: s.si }));
+              const utt = new SpeechSynthesisUtterance(s.text);
               utt.lang = "zh-CN";
               utt.rate = tts.rate;
-              if (chosenVoice) utt.voice = chosenVoice;
+              if (voice) utt.voice = voice;
               utt.onend = () => {
                 if (ttsToken.current !== myToken) return;
                 pos++;
-                speakNext();
+                next();
               };
               utt.onerror = (e) => {
                 if (e.error === "interrupted" || e.error === "canceled") return;
                 if (ttsToken.current !== myToken) return;
                 pos++;
-                speakNext();
+                next();
               };
               window.speechSynthesis.speak(utt);
             };
-            // Chrome needs ~150ms after cancel() before new speech works reliably
-            setTimeout(speakNext, 150);
+            next();
           },
           [parsedArticle, tts.rate, tts.voiceURI],
         );
 
-        // Build sentenceIdx lookup: articleIndex → si
-        const sentenceMap = useRef({});
+        const ttsSpeak = useCallback(() => doSpeak(0), [doSpeak]);
+
+        const ttsSeek = useCallback(
+          (e) => {
+            if (!parsedArticle) return;
+            const bar = e.currentTarget,
+              rect = bar.getBoundingClientRect();
+            const pct = Math.max(
+              0,
+              Math.min(
+                1,
+                ((e.clientX || e.touches?.[0]?.clientX || rect.left) -
+                  rect.left) /
+                  rect.width,
+              ),
+            );
+            const sents = sentencesCache.current;
+            if (!sents.length) return;
+            const targetPos = Math.floor(pct * sents.length);
+            ttsToken.current += 1;
+            window.speechSynthesis.cancel();
+            const myToken = ttsToken.current;
+            const voice =
+              window.speechSynthesis
+                .getVoices()
+                .find((v) => v.voiceURI === tts.voiceURI) || null;
+            let pos = targetPos;
+            setTts((t) => ({
+              ...t,
+              playing: true,
+              sentenceIdx: sents[targetPos]?.si ?? 0,
+            }));
+            const next = () => {
+              if (ttsToken.current !== myToken) return;
+              if (pos >= sents.length) {
+                setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
+                return;
+              }
+              const s = sents[pos];
+              setTts((t) => ({ ...t, sentenceIdx: s.si }));
+              const utt = new SpeechSynthesisUtterance(s.text);
+              utt.lang = "zh-CN";
+              utt.rate = tts.rate;
+              if (voice) utt.voice = voice;
+              utt.onend = () => {
+                if (ttsToken.current !== myToken) return;
+                pos++;
+                next();
+              };
+              utt.onerror = (e) => {
+                if (e.error === "interrupted" || e.error === "canceled") return;
+                if (ttsToken.current !== myToken) return;
+                pos++;
+                next();
+              };
+              window.speechSynthesis.speak(utt);
+            };
+            setTimeout(next, 150);
+          },
+          [parsedArticle, tts.rate, tts.voiceURI],
+        );
+
         useEffect(() => {
           if (!parsedArticle) return;
+          sentencesCache.current = buildSentences(parsedArticle);
           const map = {};
           let si = 0;
           parsedArticle.forEach((item, i) => {
@@ -1479,18 +1447,14 @@
           });
           sentenceMap.current = map;
         }, [parsedArticle]);
+        useEffect(() => {
+          return () => {
+            ttsToken.current += 1;
+            window.speechSynthesis.cancel();
+          };
+        }, [parsedArticle]);
 
         // ── Screens ───────────────────────────────────────────────────────────────────
-        const loadArticle = (entry) => {
-          setParsedArticle(entry.arr);
-          setImageDataUrl(entry.thumb);
-          setScreen("reading");
-        };
-
-        const deleteHistory = (id, e) => {
-          e.stopPropagation();
-          setArticleHistory((prev) => prev.filter((h) => h.id !== id));
-        };
 
         const renderHome = () => (
           <div>
@@ -1507,7 +1471,7 @@
                   Hello, Little Scholar! 你好!
                 </div>
                 <div style={{ opacity: 0.9, fontSize: "0.95rem" }}>
-                  Upload a photo of your Chinese article to start reading &
+                  Upload a photo of your Chinese article to start reading &amp;
                   learning!
                 </div>
               </div>
@@ -1517,7 +1481,14 @@
                 🏮🏮
               </div>
             </div>
-
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: "none" }}
+              onChange={(e) => handleFile(e.target.files[0])}
+            />
             <div
               className="upload-area"
               onDrop={onDrop}
@@ -1531,18 +1502,9 @@
               <div className="upload-sub">
                 Drop your Chinese article here, or click to choose a file
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                style={{ display: "none" }}
-                onChange={(e) => handleFile(e.target.files[0])}
-              />
             </div>
-
             {unknownCount > 0 && (
-              <div style={{ marginTop: 20, textAlign: "center" }}>
+              <div style={{ marginTop: 24, textAlign: "center" }}>
                 <p
                   style={{
                     color: "var(--ink-light)",
@@ -1561,7 +1523,6 @@
                 </button>
               </div>
             )}
-
             {articleHistory.length > 0 && (
               <div style={{ marginTop: 28 }}>
                 <div
@@ -1569,118 +1530,65 @@
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 14,
+                    marginBottom: 12,
                   }}
                 >
                   <div className="section-title">
                     🕐 Recent Articles ({articleHistory.length}/10)
                   </div>
                   <button
-                    className="btn btn-outline btn-sm"
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "#aaa",
-                      borderColor: "#ddd",
-                    }}
+                    className="btn btn-outline btn-xs"
                     onClick={() => {
-                      if (window.confirm("Clear all article history?"))
-                        setArticleHistory([]);
+                      if (confirm("Clear all history?")) setArticleHistory([]);
                     }}
                   >
-                    Clear All
+                    Clear all
                   </button>
                 </div>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
-                >
+                <div className="history-grid">
                   {articleHistory.map((entry) => (
                     <div
                       key={entry.id}
-                      onClick={() => loadArticle(entry)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        background: "white",
-                        borderRadius: 16,
-                        padding: "12px 14px",
-                        boxShadow: "0 2px 10px rgba(0,0,0,0.07)",
-                        cursor: "pointer",
-                        border: "2px solid transparent",
-                        transition: "all 0.2s",
-                        position: "relative",
+                      className="history-card"
+                      onClick={() => {
+                        setParsedArticle(entry.arr);
+                        setScreen("reading");
                       }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.borderColor = "var(--gold)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.borderColor = "transparent")
-                      }
                     >
                       {entry.thumb ? (
                         <img
                           src={entry.thumb}
-                          style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 10,
-                            objectFit: "cover",
-                            flexShrink: 0,
-                            border: "2px solid #f0e8e0",
-                          }}
                           alt=""
+                          className="history-thumb"
                         />
                       ) : (
                         <div
+                          className="history-thumb"
                           style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 10,
-                            background: "var(--bg)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: "1.8rem",
-                            flexShrink: 0,
+                            fontSize: "2rem",
                           }}
                         >
                           📄
                         </div>
                       )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontFamily: "'Ma Shan Zheng',cursive",
-                            fontSize: "1.1rem",
-                            color: "var(--ink)",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            marginBottom: 3,
-                          }}
-                        >
-                          {entry.preview}
-                        </div>
-                        <div style={{ fontSize: "0.75rem", color: "#aaa" }}>
-                          {entry.date}
-                        </div>
-                      </div>
                       <button
-                        onClick={(e) => deleteHistory(entry.id, e)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#ccc",
-                          cursor: "pointer",
-                          fontSize: "1.1rem",
-                          padding: "4px 6px",
-                          flexShrink: 0,
-                          lineHeight: 1,
+                        className="history-del"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setArticleHistory((prev) =>
+                            prev.filter((h) => h.id !== entry.id),
+                          );
                         }}
-                        title="Remove"
                       >
-                        ×
+                        ✕
                       </button>
+                      <div className="history-info">
+                        <div className="history-preview">{entry.preview}</div>
+                        <div className="history-date">{entry.date}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1689,100 +1597,36 @@
           </div>
         );
 
-        const renderLoading = () => (
-          <div className="loading-card">
-            <div className="loading-chars">
-              {["学", "习", "中", "文"].map((c, i) => (
-                <span
-                  key={i}
-                  className="loading-char"
-                  style={{
-                    animationDelay: `${i * 0.15}s`,
-                    color: [
-                      "var(--red)",
-                      "var(--gold)",
-                      "var(--jade)",
-                      "var(--sky)",
-                    ][i],
-                  }}
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Fredoka One',cursive",
-                fontSize: "1.2rem",
-                color: "var(--ink-light)",
-              }}
-            >
-              {loadingMsg}
-            </div>
-          </div>
-        );
-
         const renderReading = () => {
           if (!parsedArticle) return null;
+          const totalSents = Math.max(1, sentencesCache.current.length || 1);
+          const pct =
+            tts.sentenceIdx >= 0
+              ? Math.round(((tts.sentenceIdx + 1) / totalSents) * 100)
+              : 0;
           return (
             <div>
-              {imageDataUrl && (
-                <img
-                  src={imageDataUrl}
-                  style={{
-                    width: "100%",
-                    maxHeight: 200,
-                    objectFit: "cover",
-                    borderRadius: 16,
-                    marginBottom: 20,
-                    border: "3px solid var(--gold)",
-                  }}
-                  alt="Article"
-                />
-              )}
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  gap: 10,
                   marginBottom: 16,
                   flexWrap: "wrap",
-                  gap: 10,
+                  alignItems: "center",
                 }}
               >
-                <div
-                  style={{
-                    fontFamily: "'Fredoka One',cursive",
-                    fontSize: "1.3rem",
-                    color: "var(--ink)",
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    ttsStop();
+                    setScreen("home");
                   }}
                 >
-                  📖 Reading Mode
+                  ← Back
+                </button>
+                <div className="reading-hint" style={{ margin: 0, flex: 1 }}>
+                  💡 Tap any character to add/remove from study list
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    className="btn btn-outline btn-sm"
-                    onClick={() => {
-                      setImageDataUrl(null);
-                      setParsedArticle(null);
-                      setScreen("home");
-                    }}
-                  >
-                    📸 New Article
-                  </button>
-                  {unknownCount > 0 && (
-                    <button
-                      className="btn btn-jade btn-sm"
-                      onClick={() => setScreen("chars")}
-                    >
-                      📋 Study List ({unknownCount})
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="reading-hint">
-                👆 <strong>Tap any character</strong> you don't know to add it
-                to your study list. Hover to peek at the meaning!
               </div>
               <div className="article-text">
                 {parsedArticle.map((item, idx) => {
@@ -1790,7 +1634,7 @@
                     return (
                       <div key={idx} style={{ width: "100%", height: 8 }} />
                     );
-                  if (item.type === "punct")
+                  if (item.type === "punct" || item.type === "latin")
                     return (
                       <span key={idx} className="char-block punct">
                         <span className="char-pinyin" />
@@ -1802,15 +1646,13 @@
                         </span>
                       </span>
                     );
-                  if (item.char === " ")
-                    return <span key={idx} style={{ minWidth: 8 }} />;
                   const isUnknown = !!unknownChars[item.char];
                   const isSpeaking =
                     tts.playing && sentenceMap.current[idx] === tts.sentenceIdx;
                   return (
                     <span
                       key={idx}
-                      className={`char-block ${isUnknown ? "unknown" : ""} ${isSpeaking ? "speaking" : ""}`}
+                      className={`char-block${isUnknown ? " unknown" : ""}${isSpeaking ? " speaking" : ""}`}
                       onClick={() => toggleUnknown(item)}
                       onMouseEnter={(e) => handleCharHover(e, item)}
                       onMouseLeave={() =>
@@ -1824,136 +1666,98 @@
                   );
                 })}
               </div>
-              {/* TTS Player Bar */}
-              {parsedArticle && (
-                <div className="tts-bar">
+              {unknownCount > 0 && (
+                <div style={{ marginTop: 20, textAlign: "center" }}>
                   <button
-                    className="tts-btn"
-                    title={tts.playing ? "Stop" : "Read Aloud"}
-                    onClick={() => (tts.playing ? ttsStop() : ttsSpeak())}
+                    className="btn btn-jade"
+                    onClick={() => setScreen("chars")}
                   >
-                    {tts.playing ? "⏹" : "▶️"}
+                    📋 Review {unknownCount} Saved Character
+                    {unknownCount > 1 ? "s" : ""}
                   </button>
-                  <div className="tts-progress">
-                    {(() => {
-                      const totalSentences = Math.max(
-                        1,
-                        sentencesCache.current.length ||
-                          Object.keys(
-                            parsedArticle.reduce((acc, item, i) => {
-                              if (!item.type && item.char)
-                                acc[sentenceMap.current[i] || 0] = 1;
-                              return acc;
-                            }, {}),
-                          ).length,
-                      );
-                      const pct =
-                        tts.sentenceIdx >= 0
-                          ? Math.round(
-                              ((tts.sentenceIdx + 1) / totalSentences) * 100,
-                            )
-                          : 0;
-                      return (
-                        <>
-                          <div
-                            className="tts-progress-bar"
-                            onClick={ttsSeek}
-                            onTouchStart={ttsSeek}
-                            title="Click to jump to this position"
-                          >
-                            <div
-                              className="tts-progress-fill"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <div
-                            className="tts-label"
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <span>
-                              {tts.playing
-                                ? "🔊 Reading…"
-                                : "▶ Tap to hear the article read aloud"}
-                            </span>
-                            {tts.sentenceIdx >= 0 && (
-                              <span
-                                style={{ color: "var(--red)", fontWeight: 600 }}
-                              >
-                                {pct}%
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
+                </div>
+              )}
+              {/* TTS bar */}
+              <div className="tts-bar">
+                <button
+                  className="tts-btn"
+                  onClick={() => (tts.playing ? ttsStop() : ttsSpeak())}
+                >
+                  {tts.playing ? "⏹" : "▶️"}
+                </button>
+                <div className="tts-progress">
                   <div
-                    className="tts-speed"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      flexWrap: "wrap",
-                    }}
+                    className="tts-progress-bar"
+                    onClick={ttsSeek}
+                    onTouchStart={ttsSeek}
                   >
-                    {availableVoices.length > 1 && (
-                      <select
-                        value={tts.voiceURI}
-                        onChange={(e) => {
-                          ttsStop();
-                          setTts((t) => ({ ...t, voiceURI: e.target.value }));
-                        }}
-                        style={{
-                          border: "2px solid #e8ddd5",
-                          borderRadius: 8,
-                          padding: "4px 8px",
-                          fontFamily: "'Fredoka One',cursive",
-                          fontSize: "0.78rem",
-                          background: "white",
-                          cursor: "pointer",
-                          maxWidth: 140,
-                        }}
-                        title="Choose voice"
-                      >
-                        {availableVoices.map((v) => (
-                          <option key={v.voiceURI} value={v.voiceURI}>
-                            {v.name
-                              .replace(/Microsoft |Google |Apple /g, "")
-                              .slice(0, 22)}
-                          </option>
-                        ))}
-                      </select>
+                    <div
+                      className="tts-progress-fill"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="tts-label">
+                    <span>
+                      {tts.playing ? "🔊 Reading…" : "▶ Tap to read aloud"}
+                    </span>
+                    {tts.sentenceIdx >= 0 && (
+                      <span style={{ color: "var(--red)", fontWeight: 600 }}>
+                        {pct}%
+                      </span>
                     )}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {voices.length > 1 && (
                     <select
-                      value={tts.rate}
+                      value={tts.voiceURI}
                       onChange={(e) => {
                         ttsStop();
-                        setTts((t) => ({
-                          ...t,
-                          rate: parseFloat(e.target.value),
-                        }));
+                        setTts((t) => ({ ...t, voiceURI: e.target.value }));
+                      }}
+                      style={{
+                        border: "2px solid #e8ddd5",
+                        borderRadius: 8,
+                        padding: "4px 8px",
+                        fontFamily: "'Fredoka One',cursive",
+                        fontSize: "0.78rem",
+                        background: "white",
+                        cursor: "pointer",
+                        maxWidth: 140,
                       }}
                     >
-                      <option value={0.5}>🐢 Slow</option>
-                      <option value={0.8}>🚶 Normal</option>
-                      <option value={1.0}>🏃 Fast</option>
+                      {voices.map((v) => (
+                        <option key={v.voiceURI} value={v.voiceURI}>
+                          {v.name
+                            .replace(/Microsoft |Google |Apple /g, "")
+                            .slice(0, 22)}
+                        </option>
+                      ))}
                     </select>
-                  </div>
-                </div>
-              )}
-              {unknownCount > 0 && (
-                <div style={{ marginTop: 24, textAlign: "center" }}>
-                  <button
-                    className="btn btn-red"
-                    onClick={() => setScreen("quiz")}
+                  )}
+                  <select
+                    value={tts.rate}
+                    onChange={(e) => {
+                      ttsStop();
+                      setTts((t) => ({
+                        ...t,
+                        rate: parseFloat(e.target.value),
+                      }));
+                    }}
                   >
-                    🎮 Quiz Me on My {unknownCount} Characters!
-                  </button>
+                    <option value={0.5}>🐢 Slow</option>
+                    <option value={0.8}>🚶 Normal</option>
+                    <option value={1.0}>🏃 Fast</option>
+                  </select>
                 </div>
-              )}
+              </div>
             </div>
           );
         };
@@ -2102,7 +1906,6 @@
                           style={{
                             borderColor: "var(--jade)",
                             background: "rgba(46,204,154,0.05)",
-                            cursor: "pointer",
                             position: "relative",
                           }}
                           onClick={() => {
@@ -2270,28 +2073,16 @@
                     key={c.type}
                     style={{ ...cardBase, background: c.bg }}
                     onClick={() => startQuiz(c.type)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-4px)";
-                      e.currentTarget.style.boxShadow =
-                        "0 12px 28px rgba(0,0,0,0.2)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "";
-                      e.currentTarget.style.boxShadow = "";
-                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.transform =
+                        "translateY(-4px) scale(1.02)")
+                    }
+                    onMouseLeave={(e) => (e.currentTarget.style.transform = "")}
                   >
-                    <span style={{ display: "inline-block", ...badge }}>
-                      {c.badge}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "2.8rem",
-                        display: "block",
-                        marginBottom: 10,
-                      }}
-                    >
+                    <div style={badge}>{c.badge}</div>
+                    <div style={{ fontSize: "2rem", marginBottom: 8 }}>
                       {c.icon}
-                    </span>
+                    </div>
                     <div style={titleS}>{c.name}</div>
                     <div style={descS}>{c.text}</div>
                   </button>
@@ -2302,7 +2093,137 @@
                   className="btn btn-outline btn-sm"
                   onClick={() => setScreen("chars")}
                 >
-                  ← Back to Study List
+                  ↩ Back to Study List
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        const renderQuizResult = () => {
+          const { answers, type } = quizState;
+          const correct = answers.filter((a) => a.correct).length;
+          const reviewAnswers = answers.filter((a) => a.isReview);
+          const pct = Math.round((correct / answers.length) * 100);
+          return (
+            <div
+              style={{
+                maxWidth: 520,
+                margin: "0 auto",
+                textAlign: "center",
+                padding: "20px 0",
+              }}
+            >
+              <div style={{ fontSize: "4rem", marginBottom: 16 }}>
+                {pct >= 80 ? "🎉" : pct >= 50 ? "😊" : "💪"}
+              </div>
+              <div
+                style={{
+                  fontFamily: "'Fredoka One',cursive",
+                  fontSize: "2rem",
+                  color: "var(--ink)",
+                  marginBottom: 8,
+                }}
+              >
+                {correct}/{answers.length} correct!
+              </div>
+              <div style={{ color: "var(--ink-light)", marginBottom: 24 }}>
+                {pct}% —{" "}
+                {pct >= 80
+                  ? "Excellent!"
+                  : pct >= 50
+                    ? "Good job!"
+                    : "Keep practising!"}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 20,
+                  marginBottom: 24,
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                  { n: correct, l: "Correct", c: "var(--jade)" },
+                  {
+                    n: answers.length - correct,
+                    l: "To Review",
+                    c: "var(--red)",
+                  },
+                  {
+                    n: Object.keys(masteredChars).length,
+                    l: "Mastered",
+                    c: "var(--gold)",
+                  },
+                ].map((s) => (
+                  <div
+                    key={s.l}
+                    style={{
+                      background: "white",
+                      borderRadius: 16,
+                      padding: "16px 24px",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "'Fredoka One',cursive",
+                        fontSize: "2rem",
+                        color: s.c,
+                      }}
+                    >
+                      {s.n}
+                    </div>
+                    <div
+                      style={{ fontSize: "0.8rem", color: "var(--ink-light)" }}
+                    >
+                      {s.l}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {reviewAnswers.length > 0 && (
+                <div
+                  style={{
+                    background: "rgba(46,204,154,0.1)",
+                    border: "2px solid var(--jade)",
+                    borderRadius: 16,
+                    padding: "12px 20px",
+                    marginBottom: 20,
+                    fontSize: "0.9rem",
+                    color: "var(--jade-dark)",
+                  }}
+                >
+                  ⭐ {reviewAnswers.filter((a) => a.correct).length}/
+                  {reviewAnswers.length} mastered review cards correct
+                </div>
+              )}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  className="btn btn-red"
+                  onClick={() => startQuiz(quizState.type)}
+                >
+                  🔁 Try Again
+                </button>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setScreen("quiz")}
+                >
+                  🎮 Choose Mode
+                </button>
+                <button
+                  className="btn btn-jade"
+                  onClick={() => setScreen("chars")}
+                >
+                  📋 Study List
                 </button>
               </div>
             </div>
@@ -2582,9 +2503,7 @@
           );
         };
 
-        const renderQuiz = () => {
-          if (!quizState) return renderQuizTypeSelect();
-          if (quizState.done) return renderQuizResult();
+        const renderQuizActive = () => {
           const {
             questions,
             current,
@@ -2625,7 +2544,7 @@
               >
                 {current + 1} / {questions.length}
               </div>
-              <div className="quiz-card" style={{ position: "relative" }}>
+              <div className="quiz-card">
                 {item.isReview && (
                   <div
                     style={{
@@ -2702,13 +2621,13 @@
                       className="btn btn-red"
                       onClick={() => handleFlashcard(false)}
                     >
-                      😅 Didn't Know
+                      😅 Not quite
                     </button>
                     <button
                       className="btn btn-jade"
                       onClick={() => handleFlashcard(true)}
                     >
-                      🌟 I Knew It!
+                      🌟 Got it!
                     </button>
                   </div>
                 ) : (
@@ -2719,45 +2638,46 @@
                         setQuizState((p) => ({ ...p, revealed: true }))
                       }
                     >
-                      👀 Reveal Answer
+                      👀 Flip Card
                     </button>
                   </div>
                 )
               ) : (
                 <div className="quiz-options">
                   {options.map((opt, i) => {
-                    const isThisCorrect =
-                      type === "pinyin"
-                        ? opt.pinyin === item.pinyin
-                        : opt.meaning === item.meaning;
-                    const isChosen = opt.char === quizState.chosenChar;
-                    let cls = "";
-                    if (selectedOption) {
-                      if (isThisCorrect) cls = "correct";
-                      else if (isChosen) cls = "wrong";
-                    }
+                    const isChosen =
+                      selectedOption && opt.char === quizState.chosenChar;
+                    const isCorrect = selectedOption && opt.char === item.char;
                     return (
                       <button
                         key={i}
-                        className={`option-btn ${cls}`}
-                        onClick={() => !selectedOption && handleAnswer(opt)}
+                        className={`option-btn${isCorrect ? " correct" : isChosen && !isCorrect ? " wrong" : ""}`}
                         disabled={!!selectedOption}
+                        onClick={() => {
+                          setQuizState((p) => ({ ...p, chosenChar: opt.char }));
+                          handleAnswer(opt);
+                        }}
                       >
-                        {type === "pinyin" ? (
-                          <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>
+                        <div style={{ fontWeight: 600 }}>
+                          {type === "pinyin" ? opt.pinyin : opt.meaning || "—"}
+                        </div>
+                        {type === "meaning" && (
+                          <div
+                            style={{
+                              fontSize: "0.8rem",
+                              opacity: 0.7,
+                              marginTop: 2,
+                            }}
+                          >
                             {opt.pinyin}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: "0.95rem" }}>
-                            {opt.meaning}
-                          </span>
+                          </div>
                         )}
                       </button>
                     );
                   })}
                 </div>
               )}
-              <div style={{ textAlign: "center", marginTop: 12 }}>
+              <div style={{ textAlign: "center", marginTop: 16 }}>
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() => setQuizState(null)}
@@ -2769,181 +2689,56 @@
           );
         };
 
-        const renderQuizResult = () => {
-          const { answers } = quizState;
-          const correct = answers.filter((a) => a.correct).length;
-          const pct = Math.round((correct / answers.length) * 100);
-          const emoji =
-            pct >= 90 ? "🏆" : pct >= 70 ? "🌟" : pct >= 50 ? "😊" : "💪";
-          const msg =
-            pct >= 90
-              ? "Outstanding!"
-              : pct >= 70
-                ? "Great job!"
-                : pct >= 50
-                  ? "Good effort!"
-                  : "Keep practicing!";
-          return (
-            <div
-              style={{
-                maxWidth: 520,
-                margin: "0 auto",
-                textAlign: "center",
-                padding: "40px 20px",
-              }}
-            >
-              <span
-                style={{ fontSize: "5rem", display: "block", marginBottom: 16 }}
-              >
-                {emoji}
-              </span>
-              <div
-                style={{
-                  fontFamily: "'Fredoka One',cursive",
-                  fontSize: "2rem",
-                  color: "var(--ink)",
-                  marginBottom: 8,
-                }}
-              >
-                {msg}
-              </div>
-              <div
-                style={{
-                  fontSize: "1.1rem",
-                  color: "var(--ink-light)",
-                  marginBottom: 24,
-                }}
-              >
-                {pct}% — {correct} out of {answers.length} correct
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 16,
-                  justifyContent: "center",
-                  marginBottom: 28,
-                  flexWrap: "wrap",
-                }}
-              >
-                {[
-                  { n: correct, l: "Correct", c: "var(--jade)" },
-                  {
-                    n: answers.length - correct,
-                    l: "To Review",
-                    c: "var(--red)",
-                  },
-                  {
-                    n: Object.keys(masteredChars).length,
-                    l: "Mastered",
-                    c: "var(--gold)",
-                  },
-                ].map((s) => (
-                  <div
-                    key={s.l}
-                    style={{
-                      background: "white",
-                      borderRadius: 16,
-                      padding: "16px 24px",
-                      textAlign: "center",
-                      boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
-                      minWidth: 90,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "'Fredoka One',cursive",
-                        fontSize: "2rem",
-                        color: s.c,
-                      }}
-                    >
-                      {s.n}
-                    </div>
-                    <div style={{ fontSize: "0.8rem", color: "#888" }}>
-                      {s.l}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  justifyContent: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  className="btn btn-red"
-                  onClick={() => startQuiz(quizState.type)}
-                >
-                  🔁 Try Again
-                </button>
-                <button
-                  className="btn btn-gold"
-                  onClick={() => setQuizState(null)}
-                >
-                  🎮 Change Mode
-                </button>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => {
-                    setQuizState(null);
-                    setScreen("chars");
-                  }}
-                >
-                  📋 Study List
-                </button>
-              </div>
-            </div>
-          );
+        const renderQuiz = () => {
+          if (!quizState) return renderQuizTypeSelect();
+          if (quizState.done) return renderQuizResult();
+          return renderQuizActive();
         };
+
+        // ── Render ─────────────────────────────────────────────────────────────────────
+        const onRead = screen === "home" || screen === "reading";
+        const onChars = screen === "chars" || screen === "quiz";
 
         return (
           <div className="app">
             <div className="header">
               <div className="logo">
-                🏮{" "}
-                <span style={{ fontFamily: "'Ma Shan Zheng',cursive" }}>
-                  小学者
-                </span>{" "}
-                Little Scholar
+                🏮 <span>小学者</span>
               </div>
-              <div className="nav-tabs">
-                <button
-                  className={`nav-tab ${screen === "home" ? "active" : ""}`}
-                  onClick={() => setScreen("home")}
-                >
-                  🏠 Home
-                </button>
-                {parsedArticle && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div className="nav-tabs">
                   <button
-                    className={`nav-tab ${screen === "reading" ? "active" : ""}`}
-                    onClick={() => setScreen("reading")}
+                    className={`nav-tab${onRead ? " active" : ""}`}
+                    onClick={() => {
+                      ttsStop();
+                      setScreen("home");
+                    }}
                   >
                     📖 Read
                   </button>
-                )}
+                  <button
+                    className={`nav-tab${onChars ? " active" : ""}`}
+                    onClick={() => {
+                      ttsStop();
+                      setScreen("chars");
+                    }}
+                  >
+                    📋 Study List
+                    {unknownCount > 0 && (
+                      <span className="count-badge">{unknownCount}</span>
+                    )}
+                  </button>
+                </div>
                 <button
-                  className={`nav-tab ${screen === "chars" ? "active" : ""}`}
-                  onClick={() => setScreen("chars")}
-                >
-                  📚 Study{" "}
-                  {unknownCount > 0 && (
-                    <span className="count-badge">{unknownCount}</span>
-                  )}
-                </button>
-                <button
-                  className={`nav-tab ${screen === "quiz" ? "active" : ""}`}
-                  onClick={() => {
-                    if (unknownCount > 0) setScreen("quiz");
-                    else showToast("Add characters to your study list first!");
-                  }}
-                >
-                  🎮 Quiz
-                </button>
-                <button
-                  className="nav-tab"
-                  style={{ borderColor: "#ccc", color: "#aaa" }}
+                  className="btn btn-outline btn-sm"
+                  title="Logout"
                   onClick={async () => {
                     await apiLogout();
                     onLogout();
@@ -2953,16 +2748,36 @@
                 </button>
               </div>
             </div>
-            {loading ? (
-              renderLoading()
-            ) : (
-              <>
-                {screen === "home" && renderHome()}
-                {screen === "reading" && renderReading()}
-                {screen === "chars" && renderChars()}
-                {screen === "quiz" && renderQuiz()}
-              </>
+
+            {loading && (
+              <div className="loading-card">
+                <div className="loading-chars">
+                  {"学习中文阅读".split("").map((c, i) => (
+                    <span
+                      key={i}
+                      className="loading-char"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'Fredoka One',cursive",
+                    color: "var(--ink-light)",
+                  }}
+                >
+                  {loadingMsg}
+                </div>
+              </div>
             )}
+
+            {!loading && screen === "home" && renderHome()}
+            {!loading && screen === "reading" && renderReading()}
+            {!loading && screen === "chars" && renderChars()}
+            {!loading && screen === "quiz" && renderQuiz()}
+
             {tooltip.visible && tooltip.char && (
               <div
                 className="char-tooltip"
@@ -2970,12 +2785,13 @@
               >
                 <div
                   style={{
-                    color: "var(--gold-light)",
-                    fontSize: "0.95rem",
-                    fontWeight: 500,
-                    marginBottom: 3,
+                    fontFamily: "'Ma Shan Zheng',cursive",
+                    fontSize: "1.6rem",
                   }}
                 >
+                  {tooltip.char.char}
+                </div>
+                <div style={{ opacity: 0.8, fontSize: "0.9rem" }}>
                   {tooltip.char.pinyin}
                 </div>
                 <div style={{ color: "#ddd", fontSize: "0.8rem" }}>
@@ -2983,7 +2799,8 @@
                 </div>
               </div>
             )}
-            <div className={`toast ${toast.show ? "show" : ""}`}>
+
+            <div className={`toast${toast.show ? " show" : ""}`}>
               {toast.msg}
             </div>
           </div>
