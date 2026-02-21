@@ -469,6 +469,105 @@
         }
       }
 
+      /* TTS player bar */
+      .tts-bar {
+        position: sticky;
+        bottom: 16px;
+        margin-top: 20px;
+        background: white;
+        border-radius: 20px;
+        padding: 14px 20px;
+        box-shadow: 0 4px 24px rgba(192, 57, 43, 0.15);
+        border: 2px solid var(--gold-light);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .tts-btn {
+        background: var(--red);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.15s;
+      }
+      .tts-btn:hover {
+        transform: scale(1.1);
+      }
+      .tts-btn.secondary {
+        background: var(--gold);
+        font-size: 1rem;
+      }
+      .tts-progress {
+        flex: 1;
+        min-width: 120px;
+      }
+      .tts-progress-bar {
+        height: 10px;
+        background: #f0e8e0;
+        border-radius: 5px;
+        margin-bottom: 4px;
+        cursor: pointer;
+        position: relative;
+      }
+      .tts-progress-bar:hover {
+        background: #e8ddd5;
+      }
+      .tts-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--red), var(--gold));
+        border-radius: 5px;
+        transition: width 0.2s;
+        pointer-events: none;
+        position: relative;
+      }
+      .tts-progress-fill::after {
+        content: "";
+        position: absolute;
+        right: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+      }
+      .tts-label {
+        font-size: 0.72rem;
+        color: var(--ink-light);
+        font-family: "Fredoka One", cursive;
+      }
+      .tts-speed {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: var(--ink-light);
+      }
+      .tts-speed select {
+        border: 2px solid #e8ddd5;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-family: "Fredoka One", cursive;
+        font-size: 0.8rem;
+        background: white;
+        cursor: pointer;
+      }
+      .char-block.speaking {
+        background: rgba(240, 165, 0, 0.3);
+        border-radius: 6px;
+        transform: scale(1.15);
+      }
+
       /* Login screen */
       .login-screen {
         min-height: 100vh;
@@ -795,6 +894,14 @@
         const isDrawing = useRef(false);
         const lastPos = useRef(null);
         const fileRef = useRef();
+        const [tts, setTts] = useState({
+          playing: false,
+          sentenceIdx: -1,
+          rate: 0.8,
+          voiceURI: "",
+        });
+        const [availableVoices, setAvailableVoices] = useState([]);
+        const ttsToken = useRef(0); // incremented on every stop — stale closures self-abort
 
         useEffect(() => {
           localStorage.setItem(STORAGE.unknown, JSON.stringify(unknownChars));
@@ -1132,6 +1239,207 @@
           });
         };
 
+        // ── TTS ──────────────────────────────────────────────────────────────────────
+        const SENT_ENDS = /[。！？…]/;
+        const BAD_VOICE = /cantonese|yue|zh[-_]hk/i;
+        const GOOD_VOICE = /mandarin|putonghua|普通话|国语/i;
+
+        // Load & filter available Chinese voices
+        const loadVoices = useCallback(() => {
+          const all = window.speechSynthesis.getVoices();
+          const zh = all.filter(
+            (v) =>
+              v.lang.startsWith("zh") &&
+              !BAD_VOICE.test(v.name) &&
+              !BAD_VOICE.test(v.lang),
+          );
+          if (zh.length === 0) return;
+          setAvailableVoices(zh);
+          // Auto-select best default if none chosen yet
+          setTts((t) => {
+            if (t.voiceURI) return t;
+            const best =
+              zh.find((v) => GOOD_VOICE.test(v.name)) ||
+              zh.find((v) => v.lang === "zh-CN") ||
+              zh[0];
+            return { ...t, voiceURI: best.voiceURI };
+          });
+        }, []);
+
+        useEffect(() => {
+          loadVoices();
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+          return () => {
+            window.speechSynthesis.onvoiceschanged = null;
+          };
+        }, [loadVoices]);
+
+        // Hard stop — increment token so any in-flight speakNext calls self-abort
+        const ttsStop = useCallback(() => {
+          ttsToken.current += 1;
+          window.speechSynthesis.cancel();
+          // Chrome sometimes needs a nudge
+          setTimeout(() => window.speechSynthesis.cancel(), 50);
+          setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
+        }, []);
+
+        // Build sentences from parsedArticle
+        const buildSentences = (article) => {
+          const sentences = [];
+          let cur = { text: "", startIdx: 0, endIdx: 0 };
+          let si = 0;
+          article.forEach((item, i) => {
+            if (!item.char || item.type === "break") return;
+            if (item.type === "punct") {
+              cur.text += item.char;
+              if (SENT_ENDS.test(item.char) && cur.text.trim()) {
+                sentences.push({ ...cur, si: si++ });
+                cur = { text: "", startIdx: i + 1, endIdx: i + 1 };
+              }
+            } else if (!item.type) {
+              cur.text += item.char;
+              cur.endIdx = i;
+            }
+          });
+          if (cur.text.trim()) sentences.push({ ...cur, si: si });
+          return sentences;
+        };
+
+        const ttsSpeak = useCallback(() => {
+          if (!parsedArticle) return;
+
+          // Stop any current playback first
+          ttsToken.current += 1;
+          const myToken = ttsToken.current;
+          window.speechSynthesis.cancel();
+
+          const sentences = buildSentences(parsedArticle);
+          if (!sentences.length) return;
+
+          const voices = window.speechSynthesis.getVoices();
+          const chosenVoice =
+            voices.find((v) => v.voiceURI === tts.voiceURI) || null;
+
+          let pos = 0;
+          setTts((t) => ({ ...t, playing: true, sentenceIdx: 0 }));
+
+          const speakNext = () => {
+            // Abort if a newer play session has started or stop was pressed
+            if (ttsToken.current !== myToken) return;
+            if (pos >= sentences.length) {
+              setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
+              return;
+            }
+            const sentence = sentences[pos];
+            setTts((t) => ({ ...t, sentenceIdx: sentence.si }));
+
+            const utt = new SpeechSynthesisUtterance(sentence.text);
+            utt.lang = "zh-CN";
+            utt.rate = tts.rate;
+            if (chosenVoice) utt.voice = chosenVoice;
+
+            utt.onend = () => {
+              if (ttsToken.current !== myToken) return; // stale — abort
+              pos++;
+              speakNext();
+            };
+            utt.onerror = (e) => {
+              if (e.error === "interrupted" || e.error === "canceled") return; // expected on stop
+              if (ttsToken.current !== myToken) return;
+              pos++;
+              speakNext();
+            };
+            window.speechSynthesis.speak(utt);
+          };
+
+          speakNext();
+        }, [parsedArticle, tts.rate, tts.voiceURI]);
+
+        useEffect(() => {
+          return () => {
+            ttsToken.current += 1;
+            window.speechSynthesis.cancel();
+          };
+        }, [parsedArticle]);
+
+        // Cache sentences so seek can use them without rebuilding
+        const sentencesCache = useRef([]);
+        useEffect(() => {
+          if (parsedArticle)
+            sentencesCache.current = buildSentences(parsedArticle);
+        }, [parsedArticle]);
+
+        const ttsSeek = useCallback(
+          (e) => {
+            if (!parsedArticle) return;
+            const bar = e.currentTarget;
+            const rect = bar.getBoundingClientRect();
+            const clickX =
+              (e.clientX || e.touches?.[0]?.clientX || rect.left) - rect.left;
+            const pct = Math.max(0, Math.min(1, clickX / rect.width));
+            const sentences = sentencesCache.current;
+            if (!sentences.length) return;
+            const targetPos = Math.floor(pct * sentences.length);
+
+            // Stop current, then wait for Chrome to fully process cancel before starting
+            ttsToken.current += 1;
+            const myToken = ttsToken.current;
+            window.speechSynthesis.cancel();
+
+            const voices = window.speechSynthesis.getVoices();
+            const chosenVoice =
+              voices.find((v) => v.voiceURI === tts.voiceURI) || null;
+            let pos = targetPos;
+            setTts((t) => ({
+              ...t,
+              playing: true,
+              sentenceIdx: sentences[targetPos]?.si ?? 0,
+            }));
+
+            const speakNext = () => {
+              if (ttsToken.current !== myToken) return;
+              if (pos >= sentences.length) {
+                setTts((t) => ({ ...t, playing: false, sentenceIdx: -1 }));
+                return;
+              }
+              const sentence = sentences[pos];
+              setTts((t) => ({ ...t, sentenceIdx: sentence.si }));
+              const utt = new SpeechSynthesisUtterance(sentence.text);
+              utt.lang = "zh-CN";
+              utt.rate = tts.rate;
+              if (chosenVoice) utt.voice = chosenVoice;
+              utt.onend = () => {
+                if (ttsToken.current !== myToken) return;
+                pos++;
+                speakNext();
+              };
+              utt.onerror = (e) => {
+                if (e.error === "interrupted" || e.error === "canceled") return;
+                if (ttsToken.current !== myToken) return;
+                pos++;
+                speakNext();
+              };
+              window.speechSynthesis.speak(utt);
+            };
+            // Chrome needs ~150ms after cancel() before new speech works reliably
+            setTimeout(speakNext, 150);
+          },
+          [parsedArticle, tts.rate, tts.voiceURI],
+        );
+
+        // Build sentenceIdx lookup: articleIndex → si
+        const sentenceMap = useRef({});
+        useEffect(() => {
+          if (!parsedArticle) return;
+          const map = {};
+          let si = 0;
+          parsedArticle.forEach((item, i) => {
+            if (!item.type && item.char) map[i] = si;
+            if (item.type === "punct" && SENT_ENDS.test(item.char)) si++;
+          });
+          sentenceMap.current = map;
+        }, [parsedArticle]);
+
         // ── Screens ───────────────────────────────────────────────────────────────────
         const loadArticle = (entry) => {
           setParsedArticle(entry.arr);
@@ -1457,10 +1765,12 @@
                   if (item.char === " ")
                     return <span key={idx} style={{ minWidth: 8 }} />;
                   const isUnknown = !!unknownChars[item.char];
+                  const isSpeaking =
+                    tts.playing && sentenceMap.current[idx] === tts.sentenceIdx;
                   return (
                     <span
                       key={idx}
-                      className={`char-block ${isUnknown ? "unknown" : ""}`}
+                      className={`char-block ${isUnknown ? "unknown" : ""} ${isSpeaking ? "speaking" : ""}`}
                       onClick={() => toggleUnknown(item)}
                       onMouseEnter={(e) => handleCharHover(e, item)}
                       onMouseLeave={() =>
@@ -1474,6 +1784,126 @@
                   );
                 })}
               </div>
+              {/* TTS Player Bar */}
+              {parsedArticle && (
+                <div className="tts-bar">
+                  <button
+                    className="tts-btn"
+                    title={tts.playing ? "Stop" : "Read Aloud"}
+                    onClick={() => (tts.playing ? ttsStop() : ttsSpeak())}
+                  >
+                    {tts.playing ? "⏹" : "▶️"}
+                  </button>
+                  <div className="tts-progress">
+                    {(() => {
+                      const totalSentences = Math.max(
+                        1,
+                        sentencesCache.current.length ||
+                          Object.keys(
+                            parsedArticle.reduce((acc, item, i) => {
+                              if (!item.type && item.char)
+                                acc[sentenceMap.current[i] || 0] = 1;
+                              return acc;
+                            }, {}),
+                          ).length,
+                      );
+                      const pct =
+                        tts.sentenceIdx >= 0
+                          ? Math.round(
+                              ((tts.sentenceIdx + 1) / totalSentences) * 100,
+                            )
+                          : 0;
+                      return (
+                        <>
+                          <div
+                            className="tts-progress-bar"
+                            onClick={ttsSeek}
+                            onTouchStart={ttsSeek}
+                            title="Click to jump to this position"
+                          >
+                            <div
+                              className="tts-progress-fill"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div
+                            className="tts-label"
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <span>
+                              {tts.playing
+                                ? "🔊 Reading…"
+                                : "▶ Tap to hear the article read aloud"}
+                            </span>
+                            {tts.sentenceIdx >= 0 && (
+                              <span
+                                style={{ color: "var(--red)", fontWeight: 600 }}
+                              >
+                                {pct}%
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div
+                    className="tts-speed"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {availableVoices.length > 1 && (
+                      <select
+                        value={tts.voiceURI}
+                        onChange={(e) => {
+                          ttsStop();
+                          setTts((t) => ({ ...t, voiceURI: e.target.value }));
+                        }}
+                        style={{
+                          border: "2px solid #e8ddd5",
+                          borderRadius: 8,
+                          padding: "4px 8px",
+                          fontFamily: "'Fredoka One',cursive",
+                          fontSize: "0.78rem",
+                          background: "white",
+                          cursor: "pointer",
+                          maxWidth: 140,
+                        }}
+                        title="Choose voice"
+                      >
+                        {availableVoices.map((v) => (
+                          <option key={v.voiceURI} value={v.voiceURI}>
+                            {v.name
+                              .replace(/Microsoft |Google |Apple /g, "")
+                              .slice(0, 22)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <select
+                      value={tts.rate}
+                      onChange={(e) => {
+                        ttsStop();
+                        setTts((t) => ({
+                          ...t,
+                          rate: parseFloat(e.target.value),
+                        }));
+                      }}
+                    >
+                      <option value={0.5}>🐢 Slow</option>
+                      <option value={0.8}>🚶 Normal</option>
+                      <option value={1.0}>🏃 Fast</option>
+                    </select>
+                  </div>
+                </div>
+              )}
               {unknownCount > 0 && (
                 <div style={{ marginTop: 24, textAlign: "center" }}>
                   <button
