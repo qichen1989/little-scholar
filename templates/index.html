@@ -890,6 +890,7 @@
         const [masteredChars, setMasteredChars] = useState({});
         const [masteredCharData, setMasteredCharData] = useState({});
         const [articleHistory, setArticleHistory] = useState([]);
+        const [quizProgress, setQuizProgress] = useState({}); // {char:{pinyin,flashcard,writing}}
         const [quizState, setQuizState] = useState(null);
         const [toast, setToast] = useState({ msg: "", show: false });
         const [tooltip, setTooltip] = useState({
@@ -935,6 +936,7 @@
               if (d.masteredChars) setMasteredChars(d.masteredChars);
               if (d.masteredCharData) setMasteredCharData(d.masteredCharData);
               if (d.articleHistory) setArticleHistory(d.articleHistory);
+              if (d.quizProgress) setQuizProgress(d.quizProgress);
             })
             .catch((e) => {
               if (e.message === "SESSION_EXPIRED") onLogout();
@@ -952,6 +954,7 @@
               masteredChars,
               masteredCharData,
               articleHistory,
+              quizProgress,
             }).catch((e) => {
               if (e.message === "SESSION_EXPIRED") onLogout();
             });
@@ -961,6 +964,7 @@
           masteredChars,
           masteredCharData,
           articleHistory,
+          quizProgress,
           dataReady,
         ]);
 
@@ -1091,6 +1095,11 @@
             delete n[key];
             return n;
           });
+          setQuizProgress((prev) => {
+            const n = { ...prev };
+            delete n[key];
+            return n;
+          });
         };
 
         // ── Quiz ─────────────────────────────────────────────────────────────────────
@@ -1152,41 +1161,101 @@
           });
         };
 
+        // Award progress & auto-promote when all 3 quiz types passed correctly
+        const recordPass = (
+          char,
+          type,
+          unknownSnap,
+          masteredSnap,
+          masteredDataSnap,
+        ) => {
+          if (masteredSnap[char]) return; // already mastered, skip
+          setQuizProgress((prev) => {
+            const existing = prev[char] || {};
+            const updated = { ...existing, [type]: true };
+            const newProg = { ...prev, [char]: updated };
+            // Auto-promote when pinyin + flashcard + writing all passed
+            if (updated.pinyin && updated.flashcard && updated.writing) {
+              const info = unknownSnap[char] || masteredDataSnap[char] || {};
+              setTimeout(() => {
+                setMasteredChars((m) => ({ ...m, [char]: true }));
+                setMasteredCharData((md) => ({ ...md, [char]: info }));
+                setUnknownChars((u) => {
+                  const n = { ...u };
+                  delete n[char];
+                  return n;
+                });
+                setQuizProgress((p) => {
+                  const n = { ...p };
+                  delete n[char];
+                  return n;
+                });
+                showToast(`🏆 "${char}" auto-mastered! Passed all 3 quizzes!`);
+              }, 300);
+            }
+            return newProg;
+          });
+        };
+
         const advanceQuiz = (newAnswers, isCorrect) => {
-          const { questions, current, type, pool } = quizState;
+          const { questions, current, pool } = quizState;
           const next = current + 1;
-          if (next >= questions.length) {
-            setQuizState((p) => ({ ...p, answers: newAnswers, done: true }));
-            return;
-          }
-          setQuizState((p) => ({
-            ...p,
-            answers: newAnswers,
-            current: next,
-            options: buildOptions(questions[next], pool),
-            revealed: false,
-            selectedOption:
-              isCorrect !== undefined
-                ? isCorrect
-                  ? "correct"
-                  : "wrong"
-                : null,
-          }));
-          if (isCorrect !== undefined)
+          const isDone = next >= questions.length;
+          if (isCorrect !== undefined) {
+            // Show feedback on the CURRENT question first, then advance after delay
+            setQuizState((p) => ({
+              ...p,
+              answers: newAnswers,
+              selectedOption: isCorrect ? "correct" : "wrong",
+            }));
             setTimeout(
               () =>
-                setQuizState((p) => (p ? { ...p, selectedOption: null } : p)),
-              700,
+                setQuizState((p) =>
+                  p
+                    ? {
+                        ...p,
+                        ...(isDone
+                          ? { done: true }
+                          : {
+                              current: next,
+                              options: buildOptions(questions[next], pool),
+                              revealed: false,
+                            }),
+                        selectedOption: null,
+                      }
+                    : p,
+                ),
+              750,
             );
+          } else {
+            // Flashcard/writing — no feedback delay needed
+            setQuizState((p) => ({
+              ...p,
+              answers: newAnswers,
+              ...(isDone
+                ? { done: true }
+                : {
+                    current: next,
+                    options: buildOptions(questions[next], pool),
+                    revealed: false,
+                  }),
+              selectedOption: null,
+            }));
+          }
         };
 
         const handleAnswer = (chosen) => {
           const { questions, current, type, answers } = quizState;
           const correct = questions[current];
-          const isCorrect =
-            type === "pinyin"
-              ? chosen.pinyin === correct.pinyin
-              : chosen.meaning === correct.meaning;
+          const isCorrect = chosen.pinyin === correct.pinyin;
+          if (isCorrect && !correct.isReview)
+            recordPass(
+              correct.char,
+              "pinyin",
+              unknownChars,
+              masteredChars,
+              masteredCharData,
+            );
           advanceQuiz(
             [
               ...answers,
@@ -1200,9 +1269,17 @@
           );
         };
 
-        const handleFlashcard = (knew) => {
+        const handleFlashcard = (knew, quizType) => {
           const { questions, current, answers } = quizState;
           const item = questions[current];
+          if (knew && !item.isReview)
+            recordPass(
+              item.char,
+              quizType,
+              unknownChars,
+              masteredChars,
+              masteredCharData,
+            );
           clearCanvas();
           advanceQuiz(
             [
@@ -1864,8 +1941,45 @@
                         >
                           {item.pinyin}
                         </div>
-                        <div style={{ fontSize: "0.78rem", color: "#888" }}>
+                        <div
+                          style={{
+                            fontSize: "0.78rem",
+                            color: "#888",
+                            marginBottom: 6,
+                          }}
+                        >
                           {item.meaning}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            gap: 4,
+                          }}
+                        >
+                          {[
+                            ["P", "pinyin", "🔤"],
+                            ["F", "flashcard", "🃏"],
+                            ["W", "writing", "✍️"],
+                          ].map(([lbl, key, ico]) => {
+                            const done = (quizProgress[item.char] || {})[key];
+                            return (
+                              <span
+                                key={key}
+                                title={`${ico} ${key}`}
+                                style={{
+                                  fontSize: "0.65rem",
+                                  borderRadius: 6,
+                                  padding: "2px 5px",
+                                  background: done ? "var(--jade)" : "#e8ddd5",
+                                  color: done ? "white" : "#aaa",
+                                  fontFamily: "'Fredoka One',cursive",
+                                }}
+                              >
+                                {lbl}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -2010,14 +2124,6 @@
               text: "See the character, pick the right pronunciation",
             },
             {
-              type: "meaning",
-              bg: "linear-gradient(135deg,#1A7A5E,#0E6655)",
-              badge: "MULTIPLE CHOICE",
-              icon: "💬",
-              name: "Meaning Quiz",
-              text: "See the character, find the right English meaning",
-            },
-            {
               type: "flashcard",
               bg: "linear-gradient(135deg,#B7770D,#9A6209)",
               badge: "SELF GRADED",
@@ -2057,13 +2163,33 @@
                   选择练习方式
                 </div>
                 <div style={{ color: "var(--ink-light)", fontSize: "0.95rem" }}>
-                  Choose how you want to practice today
+                  Pass all 3 to auto-master a character!
                 </div>
+                {Object.keys(quizProgress).length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      fontSize: "0.82rem",
+                      color: "var(--jade-dark)",
+                      background: "rgba(46,204,154,0.1)",
+                      borderRadius: 10,
+                      padding: "6px 14px",
+                      display: "inline-block",
+                    }}
+                  >
+                    🎯{" "}
+                    {
+                      Object.keys(quizProgress).filter((k) => unknownChars[k])
+                        .length
+                    }{" "}
+                    characters making progress
+                  </div>
+                )}
               </div>
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "1fr 1fr 1fr",
                   gap: 14,
                   marginBottom: 24,
                 }}
@@ -2215,7 +2341,10 @@
                 </button>
                 <button
                   className="btn btn-outline"
-                  onClick={() => setScreen("quiz")}
+                  onClick={() => {
+                    setQuizState(null);
+                    setScreen("quiz");
+                  }}
                 >
                   🎮 Choose Mode
                 </button>
@@ -2475,13 +2604,13 @@
                   >
                     <button
                       className="btn btn-red"
-                      onClick={() => handleFlashcard(false)}
+                      onClick={() => handleFlashcard(false, "writing")}
                     >
                       😅 Not quite
                     </button>
                     <button
                       className="btn btn-jade"
-                      onClick={() => handleFlashcard(true)}
+                      onClick={() => handleFlashcard(true, "writing")}
                     >
                       🌟 Got it!
                     </button>
@@ -2574,9 +2703,7 @@
                 >
                   {isFlash
                     ? "What's the pinyin & meaning?"
-                    : type === "pinyin"
-                      ? "Pick the correct pinyin"
-                      : "Pick the correct meaning"}
+                    : "Pick the correct pinyin"}
                 </div>
                 <div className="quiz-char">{item.char}</div>
                 {isFlash && (
@@ -2619,13 +2746,13 @@
                   >
                     <button
                       className="btn btn-red"
-                      onClick={() => handleFlashcard(false)}
+                      onClick={() => handleFlashcard(false, "flashcard")}
                     >
                       😅 Not quite
                     </button>
                     <button
                       className="btn btn-jade"
-                      onClick={() => handleFlashcard(true)}
+                      onClick={() => handleFlashcard(true, "flashcard")}
                     >
                       🌟 Got it!
                     </button>
@@ -2658,20 +2785,7 @@
                           handleAnswer(opt);
                         }}
                       >
-                        <div style={{ fontWeight: 600 }}>
-                          {type === "pinyin" ? opt.pinyin : opt.meaning || "—"}
-                        </div>
-                        {type === "meaning" && (
-                          <div
-                            style={{
-                              fontSize: "0.8rem",
-                              opacity: 0.7,
-                              marginTop: 2,
-                            }}
-                          >
-                            {opt.pinyin}
-                          </div>
-                        )}
+                        <div style={{ fontWeight: 600 }}>{opt.pinyin}</div>
                       </button>
                     );
                   })}

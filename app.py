@@ -97,7 +97,7 @@ def me():
 
 # ── Key-value store ─────────────────────────────────────────────────────────────
 # Stores: unknownChars, masteredChars, masteredCharData, articleHistory
-VALID_KEYS = {"unknownChars", "masteredChars", "masteredCharData", "articleHistory"}
+VALID_KEYS = {"unknownChars", "masteredChars", "masteredCharData", "articleHistory", "quizProgress"}
 
 @app.route("/api/data", methods=["GET"])
 @require_auth
