@@ -455,7 +455,6 @@
         padding: 60px 20px;
         color: var(--ink-light);
       }
-      /* history */
       .history-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -514,7 +513,6 @@
         align-items: center;
         justify-content: center;
       }
-      /* TTS */
       .tts-bar {
         position: sticky;
         bottom: 16px;
@@ -559,9 +557,6 @@
         cursor: pointer;
         position: relative;
       }
-      .tts-progress-bar:hover {
-        background: #e8ddd5;
-      }
       .tts-progress-fill {
         height: 100%;
         background: linear-gradient(90deg, var(--red), var(--gold));
@@ -594,7 +589,6 @@
         border-radius: 6px;
         transform: scale(1.15);
       }
-      /* Login */
       .login-screen {
         min-height: 100vh;
         display: flex;
@@ -623,44 +617,6 @@
         color: var(--red);
         margin-bottom: 4px;
       }
-      .login-input {
-        width: 100%;
-        padding: 14px 16px;
-        border-radius: 14px;
-        border: 2px solid #e8ddd5;
-        font-size: 1.1rem;
-        outline: none;
-        font-family: "Noto Sans SC", sans-serif;
-        transition: border-color 0.2s;
-        margin-bottom: 20px;
-        letter-spacing: 0.1em;
-      }
-      .login-input:focus {
-        border-color: var(--red);
-      }
-      .login-btn {
-        width: 100%;
-        padding: 14px;
-        border-radius: 14px;
-        border: none;
-        background: linear-gradient(135deg, var(--red), #922b21);
-        color: white;
-        font-family: "Fredoka One", cursive;
-        font-size: 1.1rem;
-        cursor: pointer;
-        transition:
-          opacity 0.2s,
-          transform 0.2s;
-      }
-      .login-btn:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
-      }
-      .login-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
       .google-btn {
         display: inline-flex;
         align-items: center;
@@ -682,6 +638,94 @@
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         transform: translateY(-2px);
       }
+      /* ── Help walkthrough ── */
+      .wt-card {
+        background: white;
+        border-radius: 28px;
+        padding: 36px 32px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .wt-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(
+          90deg,
+          var(--red),
+          var(--gold),
+          var(--jade)
+        );
+      }
+      .wt-icon {
+        font-size: 5rem;
+        margin-bottom: 20px;
+        display: block;
+        animation: float 3s ease-in-out infinite;
+      }
+      .wt-title {
+        font-family: "Ma Shan Zheng", cursive;
+        font-size: 2rem;
+        color: var(--red);
+        margin-bottom: 12px;
+      }
+      .wt-body {
+        font-size: 1rem;
+        color: var(--ink-light);
+        line-height: 1.7;
+        max-width: 420px;
+        margin: 0 auto 24px;
+      }
+      .wt-body strong {
+        color: var(--ink);
+      }
+      .wt-demo {
+        background: var(--bg);
+        border-radius: 16px;
+        padding: 16px 20px;
+        margin: 16px 0 24px;
+        font-size: 0.9rem;
+        color: var(--ink);
+        text-align: left;
+        line-height: 1.9;
+      }
+      .wt-pip-row {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 28px;
+      }
+      .wt-pip {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #e0d6cc;
+        transition: all 0.3s;
+        cursor: pointer;
+      }
+      .wt-pip.active {
+        background: var(--red);
+        transform: scale(1.3);
+      }
+      .wt-pip.done {
+        background: var(--jade);
+      }
+      .wt-nav {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
       @media (max-width: 500px) {
         .char-zh {
           font-size: 1.3rem;
@@ -692,6 +736,12 @@
         .nav-tab {
           padding: 6px 10px;
           font-size: 0.8rem;
+        }
+        .wt-card {
+          padding: 28px 20px;
+        }
+        .wt-icon {
+          font-size: 3.5rem;
         }
       }
     </style>
@@ -708,7 +758,6 @@
           ch,
         );
 
-      // ── API ────────────────────────────────────────────────────────────────────────
       const apiFetch = async (url, opts = {}) => {
         const res = await fetch(url, {
           credentials: "include",
@@ -725,7 +774,6 @@
         const r = await apiFetch(url, opts);
         return r.json();
       };
-
       const apiLogout = () => apiFetch("/api/logout", { method: "POST" });
       const apiCheckAuth = () => apiJson("/api/me");
       const apiLoad = () => apiJson("/api/data");
@@ -745,7 +793,6 @@
           return d.text;
         });
 
-      // ── Image helpers ──────────────────────────────────────────────────────────────
       function preprocessImage(dataUrl) {
         return new Promise((resolve, reject) => {
           const img = new Image();
@@ -792,7 +839,7 @@
         });
       }
 
-      // ── Login ──────────────────────────────────────────────────────────────────────
+      // ── Login ─────────────────────────────────────────────────────────────────────
       function LoginScreen() {
         return (
           <div className="login-screen">
@@ -885,6 +932,410 @@
         );
       }
 
+      // ── Help Walkthrough ──────────────────────────────────────────────────────────
+      const STEPS = [
+        {
+          icon: "📸",
+          title: "Take a Photo!",
+          body: (
+            <>
+              Tap the <strong>big upload box</strong> on the home screen.
+              <br />
+              Take a photo of your Chinese article or homework — any printed
+              Chinese text works!
+            </>
+          ),
+          demo: (
+            <div
+              style={{
+                background: "white",
+                borderRadius: 12,
+                padding: "16px",
+                border: "3px dashed var(--gold)",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontSize: "2.5rem" }}>📸</span>
+              <div
+                style={{
+                  fontFamily: "'Fredoka One',cursive",
+                  fontSize: "1rem",
+                  color: "var(--ink)",
+                  marginTop: 8,
+                }}
+              >
+                Tap here to upload a photo
+              </div>
+            </div>
+          ),
+        },
+        {
+          icon: "🔤",
+          title: "Read with Pinyin",
+          body: (
+            <>
+              Your article appears with <strong>pinyin</strong> (the little
+              letters) above every character, and you can tap{" "}
+              <strong>▶ to hear it read aloud!</strong>
+            </>
+          ),
+          demo: (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
+              {[
+                ["nǐ", "你"],
+                ["hǎo", "好"],
+                ["ma", "吗"],
+                ["？", "？"],
+              ].map(([py, ch]) => (
+                <div
+                  key={ch}
+                  style={{
+                    display: "inline-flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    background: "rgba(192,57,43,0.08)",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    minWidth: 44,
+                  }}
+                >
+                  <span
+                    style={{ fontSize: "0.75rem", color: "var(--ink-light)" }}
+                  >
+                    {py}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "'Ma Shan Zheng',cursive",
+                      fontSize: "2rem",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {ch}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ),
+        },
+        {
+          icon: "📌",
+          title: "Save Hard Characters",
+          body: (
+            <>
+              <strong>Tap any character</strong> you don't know — it turns red
+              and gets saved to your Study List. Tap again to remove it. Build
+              your own personal word list!
+            </>
+          ),
+          demo: (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
+              {[
+                { ch: "学", py: "xué", saved: true },
+                { ch: "习", py: "xí", saved: false },
+                { ch: "中", py: "zhōng", saved: true },
+                { ch: "文", py: "wén", saved: false },
+              ].map(({ ch, py, saved }) => (
+                <div
+                  key={ch}
+                  style={{
+                    display: "inline-flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    minWidth: 44,
+                    border: saved
+                      ? "2px solid var(--red)"
+                      : "2px solid transparent",
+                    background: saved ? "rgba(192,57,43,0.1)" : "transparent",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: "0.75rem", color: "var(--ink-light)" }}
+                  >
+                    {py}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "'Ma Shan Zheng',cursive",
+                      fontSize: "2rem",
+                      color: saved ? "var(--red)" : "var(--ink)",
+                    }}
+                  >
+                    {ch}
+                  </span>
+                  {saved && (
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        background: "var(--red)",
+                        borderRadius: "50%",
+                        marginTop: 2,
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ),
+        },
+        {
+          icon: "🎮",
+          title: "Quiz Yourself!",
+          body: (
+            <>
+              Head to <strong>Study List → Start Quiz</strong> and pick one of 3
+              modes. Practice the characters you saved!
+            </>
+          ),
+          demo: (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 10,
+              }}
+            >
+              {[
+                ["🔤", "Pinyin", "Multiple choice"],
+                ["🃏", "Flashcard", "Flip & test"],
+                ["✍️", "Writing", "Draw it!"],
+              ].map(([icon, name, sub]) => (
+                <div
+                  key={name}
+                  style={{
+                    background: "linear-gradient(135deg,var(--red),#922B21)",
+                    borderRadius: 14,
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    color: "white",
+                  }}
+                >
+                  <div style={{ fontSize: "1.8rem" }}>{icon}</div>
+                  <div
+                    style={{
+                      fontFamily: "'Fredoka One',cursive",
+                      fontSize: "0.85rem",
+                      marginTop: 4,
+                    }}
+                  >
+                    {name}
+                  </div>
+                  <div
+                    style={{ fontSize: "0.65rem", opacity: 0.8, marginTop: 2 }}
+                  >
+                    {sub}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ),
+        },
+        {
+          icon: "🏆",
+          title: "Earn Master Status!",
+          body: (
+            <>
+              Pass a character in <strong>all 3 quizzes</strong> and it
+              automatically moves to your <strong>Master List!</strong> Watch
+              the P · F · W badges fill up on each character card.
+            </>
+          ),
+          demo: (
+            <div
+              style={{
+                background: "white",
+                borderRadius: 14,
+                padding: "14px 16px",
+                border: "2px solid var(--jade)",
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "'Ma Shan Zheng',cursive",
+                  fontSize: "3.5rem",
+                  color: "var(--jade-dark)",
+                }}
+              >
+                学
+              </span>
+              <div>
+                <div
+                  style={{
+                    fontSize: "0.7rem",
+                    color: "var(--jade-dark)",
+                    fontFamily: "'Fredoka One',cursive",
+                    marginBottom: 6,
+                  }}
+                >
+                  ⭐ MASTERED
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[
+                    ["P", "pinyin"],
+                    ["F", "flashcard"],
+                    ["W", "writing"],
+                  ].map(([l, k]) => (
+                    <span
+                      key={k}
+                      style={{
+                        fontSize: "0.65rem",
+                        borderRadius: 6,
+                        padding: "2px 7px",
+                        background: "var(--jade)",
+                        color: "white",
+                        fontFamily: "'Fredoka One',cursive",
+                      }}
+                    >
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginLeft: "auto", fontSize: "2rem" }}>🏆</div>
+            </div>
+          ),
+        },
+        {
+          icon: "⭐",
+          title: "Mastered Characters Still Pop Up!",
+          body: (
+            <>
+              Even after mastering a character, it appears as a{" "}
+              <strong>⭐ REVIEW</strong> card in quizzes occasionally — so you
+              never forget what you learned!
+            </>
+          ),
+          demo: (
+            <div
+              style={{
+                background: "white",
+                borderRadius: 14,
+                padding: "14px 20px",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <div
+                  style={{
+                    fontFamily: "'Ma Shan Zheng',cursive",
+                    fontSize: "4rem",
+                    color: "var(--ink)",
+                  }}
+                >
+                  好
+                </div>
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -8,
+                    right: -50,
+                    background: "rgba(46,204,154,0.15)",
+                    border: "1px solid var(--jade)",
+                    borderRadius: 8,
+                    padding: "2px 8px",
+                    fontSize: "0.65rem",
+                    color: "var(--jade-dark)",
+                    fontFamily: "'Fredoka One',cursive",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ⭐ REVIEW
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--ink-light)",
+                  marginTop: 8,
+                }}
+              >
+                Keep it fresh in your memory!
+              </div>
+            </div>
+          ),
+        },
+      ];
+
+      function HelpScreen() {
+        const [step, setStep] = useState(0);
+        const total = STEPS.length;
+        const s = STEPS[step];
+        const isLast = step === total - 1;
+        return (
+          <div style={{ maxWidth: 520, margin: "0 auto", padding: "8px 0" }}>
+            <div className="wt-pip-row">
+              {STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  className={`wt-pip${i === step ? " active" : i < step ? " done" : ""}`}
+                  onClick={() => setStep(i)}
+                />
+              ))}
+            </div>
+            <div className="wt-card">
+              <span className="wt-icon">{s.icon}</span>
+              <div className="wt-title">{s.title}</div>
+              <div className="wt-body">{s.body}</div>
+              <div className="wt-demo">{s.demo}</div>
+              <div className="wt-nav">
+                {step > 0 && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setStep((s) => s - 1)}
+                  >
+                    ← Back
+                  </button>
+                )}
+                {!isLast ? (
+                  <button
+                    className="btn btn-red"
+                    onClick={() => setStep((s) => s + 1)}
+                  >
+                    Next →
+                  </button>
+                ) : (
+                  <button className="btn btn-jade" onClick={() => setStep(0)}>
+                    🔁 Start Over
+                  </button>
+                )}
+              </div>
+            </div>
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 16,
+                fontFamily: "'Fredoka One',cursive",
+                fontSize: "0.82rem",
+                color: "var(--ink-light)",
+              }}
+            >
+              Step {step + 1} of {total}
+            </div>
+          </div>
+        );
+      }
+
       // ── Main App ───────────────────────────────────────────────────────────────────
       function App({ onLogout, user, name }) {
         const [screen, setScreen] = useState("home");
@@ -895,7 +1346,7 @@
         const [masteredChars, setMasteredChars] = useState({});
         const [masteredCharData, setMasteredCharData] = useState({});
         const [articleHistory, setArticleHistory] = useState([]);
-        const [quizProgress, setQuizProgress] = useState({}); // {char:{pinyin,flashcard,writing}}
+        const [quizProgress, setQuizProgress] = useState({});
         const [quizState, setQuizState] = useState(null);
         const [toast, setToast] = useState({ msg: "", show: false });
         const [tooltip, setTooltip] = useState({
@@ -911,9 +1362,8 @@
         const isDrawing = useRef(false);
         const lastPos = useRef(null);
         const saveTimer = useRef(null);
-        const saveEnabled = useRef(false); // only true after a successful load
+        const saveEnabled = useRef(false);
 
-        // TTS
         const [tts, setTts] = useState({
           playing: false,
           sentenceIdx: -1,
@@ -934,7 +1384,7 @@
         };
         const unknownCount = Object.keys(unknownChars).length;
 
-        // ── Load from server ─────────────────────────────────────────────────────────
+        // ── Load ───────────────────────────────────────────────────────────────────
         useEffect(() => {
           apiLoad()
             .then((d) => {
@@ -943,16 +1393,15 @@
               if (d.masteredCharData) setMasteredCharData(d.masteredCharData);
               if (d.articleHistory) setArticleHistory(d.articleHistory);
               if (d.quizProgress) setQuizProgress(d.quizProgress);
-              saveEnabled.current = true; // load succeeded — safe to auto-save
+              saveEnabled.current = true;
               setDataReady(true);
             })
             .catch((e) => {
               if (e.message === "SESSION_EXPIRED") onLogout();
-              // do NOT set dataReady on failure — prevents overwriting DB with empty state
             });
         }, []);
 
-        // ── Auto-save (debounced) ────────────────────────────────────────────────────
+        // ── Auto-save ─────────────────────────────────────────────────────────────
         useEffect(() => {
           if (!dataReady || !saveEnabled.current) return;
           if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -976,7 +1425,7 @@
           dataReady,
         ]);
 
-        // ── File handling ────────────────────────────────────────────────────────────
+        // ── File handling ──────────────────────────────────────────────────────────
         const handleFile = async (file) => {
           if (!file) return;
           setLoading(true);
@@ -1047,7 +1496,7 @@
           if (f?.type.startsWith("image/")) handleFile(f);
         }, []);
 
-        // ── Char management ──────────────────────────────────────────────────────────
+        // ── Char management ────────────────────────────────────────────────────────
         const toggleUnknown = (item) => {
           if (
             !item.char ||
@@ -1082,9 +1531,7 @@
             delete n[key];
             return n;
           });
-          showToast(
-            `🌟 "${key}" mastered — will appear occasionally in quizzes!`,
-          );
+          showToast(`🌟 "${key}" mastered!`);
         };
 
         const removeChar = (key) => {
@@ -1110,7 +1557,7 @@
           });
         };
 
-        // ── Quiz ─────────────────────────────────────────────────────────────────────
+        // ── Quiz ───────────────────────────────────────────────────────────────────
         const REVIEW_RATE = 0.25;
 
         const buildQuestionList = () => {
@@ -1169,7 +1616,6 @@
           });
         };
 
-        // Award progress & auto-promote when all 3 quiz types passed correctly
         const recordPass = (
           char,
           type,
@@ -1177,12 +1623,11 @@
           masteredSnap,
           masteredDataSnap,
         ) => {
-          if (masteredSnap[char]) return; // already mastered, skip
+          if (masteredSnap[char]) return;
           setQuizProgress((prev) => {
             const existing = prev[char] || {};
             const updated = { ...existing, [type]: true };
             const newProg = { ...prev, [char]: updated };
-            // Auto-promote when pinyin + flashcard + writing all passed
             if (updated.pinyin && updated.flashcard && updated.writing) {
               const info = unknownSnap[char] || masteredDataSnap[char] || {};
               setTimeout(() => {
@@ -1210,7 +1655,6 @@
           const next = current + 1;
           const isDone = next >= questions.length;
           if (isCorrect !== undefined) {
-            // Show feedback on the CURRENT question first, then advance after delay
             setQuizState((p) => ({
               ...p,
               answers: newAnswers,
@@ -1236,7 +1680,6 @@
               750,
             );
           } else {
-            // Flashcard/writing — no feedback delay needed
             setQuizState((p) => ({
               ...p,
               answers: newAnswers,
@@ -1253,7 +1696,7 @@
         };
 
         const handleAnswer = (chosen) => {
-          const { questions, current, type, answers } = quizState;
+          const { questions, current, answers } = quizState;
           const correct = questions[current];
           const isCorrect = chosen.pinyin === correct.pinyin;
           if (isCorrect && !correct.isReview)
@@ -1298,7 +1741,7 @@
           );
         };
 
-        // ── Canvas ───────────────────────────────────────────────────────────────────
+        // ── Canvas ─────────────────────────────────────────────────────────────────
         const getPos = (e, c) => {
           const r = c.getBoundingClientRect(),
             s = e.touches ? e.touches[0] : e;
@@ -1358,7 +1801,7 @@
           });
         };
 
-        // ── TTS ──────────────────────────────────────────────────────────────────────
+        // ── TTS ────────────────────────────────────────────────────────────────────
         const loadVoices = useCallback(() => {
           const all = window.speechSynthesis.getVoices();
           const zh = all.filter(
@@ -1539,8 +1982,7 @@
           };
         }, [parsedArticle]);
 
-        // ── Screens ───────────────────────────────────────────────────────────────────
-
+        // ── Render screens ─────────────────────────────────────────────────────────
         const renderHome = () => (
           <div>
             <div className="welcome-banner">
@@ -1762,7 +2204,6 @@
                   </button>
                 </div>
               )}
-              {/* TTS bar */}
               <div className="tts-bar">
                 <button
                   className="tts-btn"
@@ -2028,7 +2469,6 @@
                           style={{
                             borderColor: "var(--jade)",
                             background: "rgba(46,204,154,0.05)",
-                            position: "relative",
                           }}
                           onClick={() => {
                             setMasteredChars((prev) => {
@@ -2094,7 +2534,7 @@
             cursor: "pointer",
             border: "none",
             textAlign: "left",
-            transition: "transform 0.2s, box-shadow 0.2s",
+            transition: "transform 0.2s",
             position: "relative",
             overflow: "hidden",
             display: "block",
@@ -2109,7 +2549,6 @@
             color: "white",
             fontFamily: "'Fredoka One',cursive",
             marginBottom: 12,
-            letterSpacing: "0.05em",
           };
           const titleS = {
             fontFamily: "'Fredoka One',cursive",
@@ -2173,7 +2612,8 @@
                 <div style={{ color: "var(--ink-light)", fontSize: "0.95rem" }}>
                   Pass all 3 to auto-master a character!
                 </div>
-                {Object.keys(quizProgress).length > 0 && (
+                {Object.keys(quizProgress).filter((k) => unknownChars[k])
+                  .length > 0 && (
                   <div
                     style={{
                       marginTop: 10,
@@ -2235,7 +2675,7 @@
         };
 
         const renderQuizResult = () => {
-          const { answers, type } = quizState;
+          const { answers } = quizState;
           const correct = answers.filter((a) => a.correct).length;
           const reviewAnswers = answers.filter((a) => a.isReview);
           const pct = Math.round((correct / answers.length) * 100);
@@ -2644,11 +3084,11 @@
           const {
             questions,
             current,
-            type,
             options,
             revealed,
             selectedOption,
             answers,
+            type,
           } = quizState;
           const item = questions[current];
           if (type === "writing") return renderWritingQuiz();
@@ -2780,13 +3220,15 @@
               ) : (
                 <div className="quiz-options">
                   {options.map((opt, i) => {
-                    const isChosen =
-                      selectedOption && opt.char === quizState.chosenChar;
                     const isCorrect = selectedOption && opt.char === item.char;
+                    const isWrong =
+                      selectedOption &&
+                      opt.char === quizState.chosenChar &&
+                      opt.char !== item.char;
                     return (
                       <button
                         key={i}
-                        className={`option-btn${isCorrect ? " correct" : isChosen && !isCorrect ? " wrong" : ""}`}
+                        className={`option-btn${isCorrect ? " correct" : isWrong ? " wrong" : ""}`}
                         disabled={!!selectedOption}
                         onClick={() => {
                           setQuizState((p) => ({ ...p, chosenChar: opt.char }));
@@ -2817,9 +3259,10 @@
           return renderQuizActive();
         };
 
-        // ── Render ─────────────────────────────────────────────────────────────────────
+        // ── Header & layout ────────────────────────────────────────────────────────
         const onRead = screen === "home" || screen === "reading";
         const onChars = screen === "chars" || screen === "quiz";
+        const onHelp = screen === "help";
 
         return (
           <div className="app">
@@ -2852,10 +3295,16 @@
                       setScreen("chars");
                     }}
                   >
-                    📋 Study List
+                    📋 Study
                     {unknownCount > 0 && (
                       <span className="count-badge">{unknownCount}</span>
                     )}
+                  </button>
+                  <button
+                    className={`nav-tab${onHelp ? " active" : ""}`}
+                    onClick={() => setScreen("help")}
+                  >
+                    ❓ How to Play
                   </button>
                 </div>
                 {name && (
@@ -2875,7 +3324,6 @@
                 )}
                 <button
                   className="btn btn-outline btn-sm"
-                  title="Logout"
                   onClick={async () => {
                     await apiLogout();
                     onLogout();
@@ -2914,6 +3362,7 @@
             {!loading && screen === "reading" && renderReading()}
             {!loading && screen === "chars" && renderChars()}
             {!loading && screen === "quiz" && renderQuiz()}
+            {!loading && screen === "help" && <HelpScreen />}
 
             {tooltip.visible && tooltip.char && (
               <div

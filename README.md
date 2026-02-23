@@ -1,144 +1,275 @@
 # 🏮 Little Scholar (小学者)
 
-A Chinese reading app for kids — uses **Google Cloud Vision** for OCR, **pypinyin** for tone-marked pinyin, and **CC-CEDICT** for English meanings. **No Anthropic/Claude API needed.**
+A Chinese reading app for kids — photograph any Chinese article, get instant pinyin and meanings for every character, build a personal study list, and practice with quizzes.
+
+Built with Flask + React (via CDN). No Anthropic/Claude API required.
+
+![Python](https://img.shields.io/badge/python-3.10+-blue) ![Flask](https://img.shields.io/badge/flask-3.0-green) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
 
-## Prerequisites
+## ✨ Features
 
-- Python 3.10+
-- A **Google Cloud Vision API key** (see below)
-
----
-
-## Getting Your Google Cloud Vision API Key
-
-1. Go to https://console.cloud.google.com
-2. Create a new project (or select an existing one)
-3. Search for **"Cloud Vision API"** → click **Enable**
-4. Go to **APIs & Services → Credentials**
-5. Click **+ Create Credentials → API Key**
-6. Copy the key (starts with `AIza`)
-
-> Google gives **1,000 free Vision API requests/month**.
+- **📸 OCR** — photograph any Chinese text, Google Vision extracts it instantly
+- **🔤 Pinyin** — tone-marked pinyin above every character, generated locally with pypinyin
+- **📖 Meanings** — English definitions from CC-CEDICT (120k+ entries, runs offline)
+- **🔊 Read aloud** — Web Speech API reads the article sentence by sentence with a seek bar
+- **📌 Study list** — tap any character to save it; tap again to remove
+- **⭐ Master list** — mark characters as mastered; they reappear occasionally in quizzes for review
+- **🏆 Auto-promote** — pass a character in all 3 quiz types and it automatically moves to mastered
+- **🎮 3 quiz modes** — Pinyin (multiple choice), Flashcards, Writing (draw on canvas)
+- **🕐 Article history** — last 10 articles saved with thumbnails for quick re-opening
+- **👤 Google login** — Sign in with Google; each user's data is completely separate
+- **💾 Persistent storage** — SQLite on a Render disk, survives restarts and redeployments
 
 ---
 
-## Running Locally
+## 🏗 How It Works
 
-### 1. Download the project and enter the folder
+```
+Photo upload
+    ↓
+Browser preprocesses image (resize + contrast)
+    ↓
+POST /api/ocr → Google Cloud Vision API → raw Chinese text
+    ↓
+POST /api/lookup → pypinyin (pinyin) + CC-CEDICT (meanings) — no API calls
+    ↓
+React renders article with pinyin, character tap, TTS bar
+    ↓
+Study list / quiz progress auto-saved to SQLite via POST /api/data
+```
+
+---
+
+## 📁 Project Structure
+
+```
+little-scholar/
+├── app.py                  # Flask backend — OAuth, OCR, lookup, data store
+├── templates/
+│   └── index.html          # Entire frontend (React via Babel CDN, ~900 lines)
+├── cedict_ts.u8            # CC-CEDICT dictionary — download separately (see below)
+├── requirements.txt
+├── Procfile                # gunicorn start command for Render
+├── .env.example            # Copy to .env for local dev
+└── .env                    # Your secrets — never commit this
+```
+
+---
+
+## 🚀 Running Locally
+
+### 1. Clone the repo
+
 ```bash
+git clone https://github.com/YOUR_USERNAME/little-scholar.git
 cd little-scholar
 ```
 
-### 2. Download the CC-CEDICT dictionary (free, one-time)
-This file provides English meanings for Chinese characters.
+### 2. Download CC-CEDICT (one-time, ~10 MB)
+
 ```bash
-# Mac/Linux:
+# Mac / Linux
 curl -L "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz" | gunzip > cedict_ts.u8
 
-# Windows (PowerShell):
+# Windows (PowerShell)
 Invoke-WebRequest "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz" -OutFile cedict.gz
-# Then extract cedict.gz and rename to cedict_ts.u8
+# Then extract cedict.gz and rename the result to cedict_ts.u8
 ```
 
 ### 3. Create a virtual environment
+
 ```bash
 python -m venv venv
 
-# Mac/Linux:
+# Mac / Linux
 source venv/bin/activate
 
-# Windows:
+# Windows
 venv\Scripts\activate
 ```
 
 ### 4. Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Set up your environment variables
+### 5. Set up environment variables
+
 ```bash
 cp .env.example .env
 ```
-Edit `.env` and add your Google Vision key:
-```
+
+Edit `.env`:
+
+```env
 GOOGLE_VISION_API_KEY=AIzaSy-your-key-here
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+SECRET_KEY=any-long-random-string-keep-it-secret
+ALLOWED_EMAILS=you@gmail.com,daughter@gmail.com
 FLASK_ENV=development
 ```
 
-### 6. Run the app
+### 6. Run
+
 ```bash
 python app.py
 ```
 
 Open **http://localhost:5000** 🎉
 
+> For local Google OAuth, add `http://localhost:5000/auth/google/callback` as an authorised redirect URI in your Google Cloud Console.
+
 ---
 
-## Deploying to Railway (Free Tier)
+## ☁️ Deploying to Render
 
-### 1. Add cedict_ts.u8 to your repo
-The dictionary file is ~10MB — it's fine to commit it:
+The app is designed for Render with a persistent disk for SQLite storage.
+
+### Step 1 — Commit cedict_ts.u8
+
+The dictionary is ~10 MB — fine to commit directly:
+
 ```bash
 git add cedict_ts.u8
+git commit -m "Add CC-CEDICT dictionary"
+git push
 ```
 
-### 2. Push to GitHub
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/YOUR_USERNAME/little-scholar.git
-git push -u origin main
-```
+### Step 2 — Create a Web Service on Render
 
-### 3. Deploy on Railway
-1. Go to https://railway.app → sign in with GitHub
-2. Click **New Project → Deploy from GitHub repo**
-3. Select your repo — Railway auto-detects Python
-
-### 4. Add environment variable
-1. Click your project → **Variables** tab
-2. Add: `GOOGLE_VISION_API_KEY` = your key
-3. Railway redeploys automatically
-
-### 5. Get your URL
-**Settings → Domains → Generate Domain**
-→ `little-scholar-production.up.railway.app` 🚀
-
----
-
-## Deploying to Render (Alternative)
-
-1. Go to https://render.com → **New → Web Service**
+1. Go to [render.com](https://render.com/) → **New → Web Service**
 2. Connect your GitHub repo
-3. Set **Start Command**: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`
-4. Add `GOOGLE_VISION_API_KEY` in the **Environment** tab
-5. Click **Create Web Service**
+3. Set these build settings:
 
-> Render free tier spins down after 15 min inactivity — first load takes ~30s.
+| Field             | Value                                                             |
+| ----------------- | ----------------------------------------------------------------- |
+| **Runtime**       | Python 3                                                          |
+| **Build Command** | `pip install -r requirements.txt`                                 |
+| **Start Command** | `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120` |
+| **Instance Type** | **Starter**($7/mo) — required for persistent disk                 |
+
+### Step 3 — Add a Persistent Disk
+
+1. In your service → **Disks** tab → **Add Disk**
+2. Set **Mount Path** to `/var/data` and **Size** to `1 GB`
+
+### Step 4 — Set Environment Variables
+
+Go to **Environment** tab and add:
+
+| Key                     | Value                                                                 |
+| ----------------------- | --------------------------------------------------------------------- |
+| `GOOGLE_VISION_API_KEY` | Your Vision API key (`AIzaSy…`)                                       |
+| `GOOGLE_CLIENT_ID`      | From Google Cloud Console                                             |
+| `GOOGLE_CLIENT_SECRET`  | From Google Cloud Console                                             |
+| `SECRET_KEY`            | Any long random string —**must be fixed**so sessions survive restarts |
+| `ALLOWED_EMAILS`        | Comma-separated Gmail addresses, e.g.`alice@gmail.com,bob@gmail.com`  |
+| `DB_PATH`               | `/var/data/data.db`                                                   |
+
+### Step 5 — Set up Google OAuth
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/) → your project
+2. **APIs & Services → Credentials → + Create Credentials → OAuth 2.0 Client ID**
+3. Application type: **Web application**
+4. Add authorised redirect URI: `https://your-app.onrender.com/auth/google/callback`
+5. Copy the **Client ID** and **Client Secret** → paste into Render env vars above
+
+### Step 6 — Deploy
+
+Push to GitHub — Render redeploys automatically. Visit `/api/health` to confirm:
+
+```json
+{
+  "status": "ok",
+  "cedict_entries": 120517,
+  "db": {
+    "alice@gmail.com": {
+      "unknownChars": "401 bytes",
+      "masteredChars": "11 bytes"
+    }
+  }
+}
+```
 
 ---
 
-## Project Structure
+## 🔑 Getting a Google Cloud Vision API Key
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
+2. Create a new project (or select your existing one)
+3. Search for **Cloud Vision API** → **Enable**
+4. **APIs & Services → Credentials → + Create Credentials → API Key**
+5. Copy the key (starts with `AIzaSy`)
+
+> Google gives **1,000 free Vision API requests/month** . After that it's ~$1.50 per 1,000 images.
+
+---
+
+## 👥 Adding Users
+
+Add any Gmail address to the `ALLOWED_EMAILS` env var on Render (comma-separated). Each user gets their own completely isolated study list, mastered chars, and article history.
 
 ```
-little-scholar/
-├── app.py              # Flask backend
-├── templates/
-│   └── index.html      # Full frontend (React via CDN)
-├── cedict_ts.u8        # CC-CEDICT dictionary (you download this)
-├── requirements.txt
-├── Procfile
-├── .env.example
-└── .env                # Your keys (never commit this!)
+ALLOWED_EMAILS=daughter@gmail.com,you@gmail.com,friend@gmail.com
 ```
 
-## How It Works
+---
 
-1. Image upload → browser preprocesses (contrast + resize)
-2. `POST /api/ocr` → Google Cloud Vision → extracted Chinese text
-3. `POST /api/lookup` → **pypinyin** generates tone-marked pinyin locally, **CC-CEDICT** provides meanings — zero API calls
-4. Frontend renders article with pinyin above each character
+## 🗃 Database
+
+Data is stored in a single SQLite file at `DB_PATH`. The schema is a simple key-value store namespaced by user email:
+
+```sql
+CREATE TABLE store (
+    user  TEXT NOT NULL,
+    key   TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (user, key)
+);
+```
+
+Keys stored per user: `unknownChars`, `masteredChars`, `masteredCharData`, `articleHistory`, `quizProgress`.
+
+**Schema migration** is handled automatically on startup — if an older single-user database is detected, it is migrated to the multi-user format transparently. Existing data stored under `'main'` is automatically reassigned to the first Google account that logs in.
+
+---
+
+## 🎮 Quiz System
+
+Characters start in the **Study List** . Once you pass a character correctly in all three quiz types, it auto-promotes to the **Master List** with a 🏆 toast.
+
+| Quiz         | Type            | Pass condition                |
+| ------------ | --------------- | ----------------------------- |
+| 🔤 Pinyin    | Multiple choice | Select correct pinyin         |
+| 🃏 Flashcard | Self-graded     | Tap "Got it!"                 |
+| ✍️ Writing   | Self-graded     | Draw character, tap "Got it!" |
+
+Mastered characters reappear in future quizzes at a 25% rate (marked ⭐ REVIEW) to keep them fresh.
+
+Progress badges (`P` `F` `W`) on each study list card show which quiz types have been passed.
+
+---
+
+## 🛠 Tech Stack
+
+| Layer      | Technology                           |
+| ---------- | ------------------------------------ |
+| Backend    | Python / Flask                       |
+| Frontend   | React 18 (via CDN), Babel standalone |
+| OCR        | Google Cloud Vision API              |
+| Pinyin     | pypinyin (runs locally)              |
+| Dictionary | CC-CEDICT (runs locally)             |
+| TTS        | Web Speech API (browser built-in)    |
+| Auth       | Google OAuth 2.0 via Authlib         |
+| Database   | SQLite                               |
+| Hosting    | Render (Starter plan)                |
+
+---
+
+## 📄 License
+
+MIT
