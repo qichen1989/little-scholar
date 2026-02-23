@@ -9,13 +9,11 @@ load_dotenv()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# SECRET_KEY must be a fixed string so sessions survive restarts.
-# If missing, crash loudly rather than silently generating a random one.
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
     raise RuntimeError(
         "SECRET_KEY env var is not set. "
-        "Set it to any long random string on Render so sessions survive restarts."
+        "Add it on Render — any long random string — so sessions survive restarts."
     )
 app.secret_key = _secret
 
@@ -52,13 +50,12 @@ def init_db():
     d = os.path.dirname(DB_PATH)
     if d: os.makedirs(d, exist_ok=True)
     with sqlite3.connect(DB_PATH) as db:
-        # Check if table already exists and what schema it has
         row = db.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='store'"
         ).fetchone()
 
         if row is None:
-            # Fresh install — create with user column
+            # Brand new DB
             db.execute("""
                 CREATE TABLE store (
                     user  TEXT NOT NULL,
@@ -67,17 +64,28 @@ def init_db():
                     PRIMARY KEY (user, key)
                 )
             """)
-            print("DB: created new store table")
+            print("DB: created fresh store table")
 
         elif "user" not in row[0]:
-            # Old single-user schema — migrate to multi-user
-            print("DB: migrating old schema to multi-user…")
-            db.execute("ALTER TABLE store ADD COLUMN user TEXT NOT NULL DEFAULT 'main'")
-            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_store_user_key ON store(user, key)")
-            print("DB: migration complete — existing data kept under user='main'")
+            # Old single-column schema (key TEXT PRIMARY KEY) — add user column
+            # All existing data will be assigned user='main' so it isn't lost
+            print("DB: old schema detected, migrating to multi-user...")
+            db.execute("ALTER TABLE store RENAME TO store_old")
+            db.execute("""
+                CREATE TABLE store (
+                    user  TEXT NOT NULL,
+                    key   TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    PRIMARY KEY (user, key)
+                )
+            """)
+            db.execute("INSERT INTO store(user, key, value) SELECT 'main', key, value FROM store_old")
+            db.execute("DROP TABLE store_old")
+            count = db.execute("SELECT COUNT(*) FROM store").fetchone()[0]
+            print(f"DB: migration done, {count} rows preserved under user='main'")
 
         else:
-            print("DB: schema already up to date")
+            print("DB: schema ok")
 
         db.commit()
     print("DB ready:", DB_PATH)
@@ -118,12 +126,25 @@ def require_auth(f):
 def current_user():
     return session.get("user", "")
 
+def migrate_main_to_user(email):
+    """
+    If 'main' has data and this email has none yet, re-assign 'main' rows to this email.
+    This handles the transition from password login → Google OAuth seamlessly.
+    """
+    with sqlite3.connect(DB_PATH) as db:
+        main_count  = db.execute("SELECT COUNT(*) FROM store WHERE user='main'").fetchone()[0]
+        email_count = db.execute("SELECT COUNT(*) FROM store WHERE user=?", (email,)).fetchone()[0]
+        if main_count > 0 and email_count == 0:
+            db.execute("UPDATE store SET user=? WHERE user='main'", (email,))
+            db.commit()
+            print(f"DB: migrated {main_count} rows from 'main' → '{email}'")
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return send_from_directory("templates", "index.html")
 
-# ── Google OAuth routes ───────────────────────────────────────────────────────
+# ── Google OAuth ──────────────────────────────────────────────────────────────
 @app.route("/auth/google")
 def auth_google():
     callback_url = url_for("auth_google_callback", _external=True)
@@ -144,6 +165,9 @@ def auth_google_callback():
           <h2>⛔ Access denied</h2>
           <p>{email} is not on the allowed list.</p>
           <a href="/">← Back</a></body></html>""", 403
+
+    # Seamlessly move any existing 'main' data to this email on first login
+    migrate_main_to_user(email)
 
     session["authenticated"] = True
     session["user"]           = email
@@ -231,7 +255,16 @@ def lookup():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "cedict_entries": len(CEDICT)})
+    """Shows DB contents summary — useful for debugging."""
+    try:
+        with sqlite3.connect(DB_PATH) as db:
+            rows = db.execute("SELECT user, key, length(value) as vlen FROM store ORDER BY user, key").fetchall()
+            summary = {}
+            for r in rows:
+                summary.setdefault(r[0], {})[r[1]] = f"{r[2]} bytes"
+    except Exception as e:
+        summary = {"error": str(e)}
+    return jsonify({"status": "ok", "cedict_entries": len(CEDICT), "db": summary})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
