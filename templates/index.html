@@ -911,6 +911,7 @@
         const isDrawing = useRef(false);
         const lastPos = useRef(null);
         const saveTimer = useRef(null);
+        const saveEnabled = useRef(false); // only true after a successful load
 
         // TTS
         const [tts, setTts] = useState({
@@ -942,16 +943,18 @@
               if (d.masteredCharData) setMasteredCharData(d.masteredCharData);
               if (d.articleHistory) setArticleHistory(d.articleHistory);
               if (d.quizProgress) setQuizProgress(d.quizProgress);
+              saveEnabled.current = true; // load succeeded — safe to auto-save
+              setDataReady(true);
             })
             .catch((e) => {
               if (e.message === "SESSION_EXPIRED") onLogout();
-            })
-            .finally(() => setDataReady(true));
+              // do NOT set dataReady on failure — prevents overwriting DB with empty state
+            });
         }, []);
 
         // ── Auto-save (debounced) ────────────────────────────────────────────────────
         useEffect(() => {
-          if (!dataReady) return;
+          if (!dataReady || !saveEnabled.current) return;
           if (saveTimer.current) clearTimeout(saveTimer.current);
           saveTimer.current = setTimeout(() => {
             apiSave({
@@ -963,7 +966,7 @@
             }).catch((e) => {
               if (e.message === "SESSION_EXPIRED") onLogout();
             });
-          }, 1500);
+          }, 400);
         }, [
           unknownChars,
           masteredChars,

@@ -8,17 +8,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
+
+# SECRET_KEY must be a fixed string so sessions survive restarts.
+# If missing, crash loudly rather than silently generating a random one.
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    raise RuntimeError(
+        "SECRET_KEY env var is not set. "
+        "Set it to any long random string on Render so sessions survive restarts."
+    )
+app.secret_key = _secret
+
 CORS(app, supports_credentials=True)
 
-GOOGLE_VISION_KEY  = os.environ["GOOGLE_VISION_API_KEY"]
-DB_PATH            = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data.db"))
-
-# Comma-separated list of allowed Google emails, e.g. "alice@gmail.com,bob@gmail.com"
-ALLOWED_EMAILS = {e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
+GOOGLE_VISION_KEY = os.environ["GOOGLE_VISION_API_KEY"]
+DB_PATH           = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "data.db"))
+ALLOWED_EMAILS    = {e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
 
 # ── Google OAuth ──────────────────────────────────────────────────────────────
-oauth = OAuth(app)
+oauth  = OAuth(app)
 google = oauth.register(
     name="google",
     client_id=os.environ.get("GOOGLE_CLIENT_ID"),
@@ -44,14 +52,33 @@ def init_db():
     d = os.path.dirname(DB_PATH)
     if d: os.makedirs(d, exist_ok=True)
     with sqlite3.connect(DB_PATH) as db:
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS store (
-                user  TEXT NOT NULL,
-                key   TEXT NOT NULL,
-                value TEXT NOT NULL,
-                PRIMARY KEY (user, key)
-            )
-        """)
+        # Check if table already exists and what schema it has
+        row = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='store'"
+        ).fetchone()
+
+        if row is None:
+            # Fresh install — create with user column
+            db.execute("""
+                CREATE TABLE store (
+                    user  TEXT NOT NULL,
+                    key   TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    PRIMARY KEY (user, key)
+                )
+            """)
+            print("DB: created new store table")
+
+        elif "user" not in row[0]:
+            # Old single-user schema — migrate to multi-user
+            print("DB: migrating old schema to multi-user…")
+            db.execute("ALTER TABLE store ADD COLUMN user TEXT NOT NULL DEFAULT 'main'")
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_store_user_key ON store(user, key)")
+            print("DB: migration complete — existing data kept under user='main'")
+
+        else:
+            print("DB: schema already up to date")
+
         db.commit()
     print("DB ready:", DB_PATH)
 
@@ -79,7 +106,7 @@ def load_cedict():
     print(f"Loaded {count} CEDICT entries")
 load_cedict()
 
-# ── Auth helpers ──────────────────────────────────────────────────────────────
+# ── Auth ──────────────────────────────────────────────────────────────────────
 def require_auth(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
@@ -91,21 +118,20 @@ def require_auth(f):
 def current_user():
     return session.get("user", "")
 
-# ── Routes: pages ─────────────────────────────────────────────────────────────
+# ── Pages ─────────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return send_from_directory("templates", "index.html")
 
-# ── Routes: Google OAuth ──────────────────────────────────────────────────────
+# ── Google OAuth routes ───────────────────────────────────────────────────────
 @app.route("/auth/google")
 def auth_google():
-    # After Google auth, redirect back to /auth/google/callback
     callback_url = url_for("auth_google_callback", _external=True)
     return google.authorize_redirect(callback_url)
 
 @app.route("/auth/google/callback")
 def auth_google_callback():
-    token = google.authorize_access_token()
+    token     = google.authorize_access_token()
     user_info = token.get("userinfo")
     if not user_info:
         return "Login failed: could not get user info", 400
@@ -113,21 +139,16 @@ def auth_google_callback():
     email = user_info.get("email", "").lower()
     name  = user_info.get("name", email)
 
-    # Check allowlist (if env var is set)
     if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
-        return f"""
-        <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+        return f"""<html><body style="font-family:sans-serif;text-align:center;padding:60px">
           <h2>⛔ Access denied</h2>
           <p>{email} is not on the allowed list.</p>
-          <p>Ask the app owner to add your email to ALLOWED_EMAILS.</p>
-          <a href="/">← Back</a>
-        </body></html>
-        """, 403
+          <a href="/">← Back</a></body></html>""", 403
 
     session["authenticated"] = True
-    session["user"]  = email
-    session["name"]  = name
-    session.permanent = True
+    session["user"]           = email
+    session["name"]           = name
+    session.permanent         = True
     return redirect("/")
 
 @app.route("/api/logout", methods=["POST"])
@@ -139,18 +160,18 @@ def logout():
 def me():
     return jsonify({
         "authenticated": bool(session.get("authenticated")),
-        "user":  session.get("user", ""),
-        "name":  session.get("name", ""),
+        "user":          session.get("user", ""),
+        "name":          session.get("name", ""),
     })
 
-# ── Key-value store (namespaced per user email) ───────────────────────────────
+# ── Data store ────────────────────────────────────────────────────────────────
 VALID_KEYS = {"unknownChars", "masteredChars", "masteredCharData", "articleHistory", "quizProgress"}
 
 @app.route("/api/data", methods=["GET"])
 @require_auth
 def get_data():
     user = current_user()
-    db = get_db()
+    db   = get_db()
     rows = db.execute("SELECT key, value FROM store WHERE user=?", (user,)).fetchall()
     result = {r["key"]: json.loads(r["value"]) for r in rows if r["key"] in VALID_KEYS}
     for k in VALID_KEYS:
@@ -163,7 +184,7 @@ def get_data():
 def save_data():
     user = current_user()
     data = request.get_json()
-    db = get_db()
+    db   = get_db()
     for key in VALID_KEYS:
         if key in data:
             db.execute(
@@ -179,9 +200,9 @@ def save_data():
 @require_auth
 def ocr():
     data = request.get_json()
-    b64 = data.get("image_base64")
+    b64  = data.get("image_base64")
     if not b64: return jsonify({"error": "Missing image_base64"}), 400
-    url = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_VISION_KEY}"
+    url     = f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_VISION_KEY}"
     payload = {"requests": [{"image": {"content": b64},
         "features": [{"type": "DOCUMENT_TEXT_DETECTION", "maxResults": 1}],
         "imageContext": {"languageHints": ["zh-Hans", "zh-Hant"]}}]}
@@ -197,9 +218,9 @@ def ocr():
 @app.route("/api/lookup", methods=["POST"])
 @require_auth
 def lookup():
-    data = request.get_json()
+    data       = request.get_json()
     characters = data.get("characters", [])
-    result = {}
+    result     = {}
     for char in characters:
         py = pinyin(char, style=Style.TONE)
         result[char] = {
