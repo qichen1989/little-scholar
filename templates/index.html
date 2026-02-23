@@ -661,6 +661,27 @@
         cursor: not-allowed;
         transform: none;
       }
+      .google-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 28px;
+        border-radius: 14px;
+        border: 2px solid #e8ddd5;
+        background: white;
+        font-family: "Fredoka One", cursive;
+        font-size: 1rem;
+        color: var(--ink);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .google-btn:hover {
+        border-color: var(--red);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+      }
       @media (max-width: 500px) {
         .char-zh {
           font-size: 1.3rem;
@@ -705,16 +726,8 @@
         return r.json();
       };
 
-      const apiLogin = (pw) =>
-        apiFetch("/api/login", {
-          method: "POST",
-          body: JSON.stringify({ password: pw }),
-        }).then((r) => {
-          if (!r.ok) throw new Error("wrong");
-        });
       const apiLogout = () => apiFetch("/api/logout", { method: "POST" });
-      const apiCheckAuth = () =>
-        apiJson("/api/me").then((d) => d.authenticated);
+      const apiCheckAuth = () => apiJson("/api/me");
       const apiLoad = () => apiJson("/api/data");
       const apiSave = (d) =>
         apiFetch("/api/data", { method: "POST", body: JSON.stringify(d) });
@@ -780,24 +793,7 @@
       }
 
       // ── Login ──────────────────────────────────────────────────────────────────────
-      function LoginScreen({ onLogin }) {
-        const [pw, setPw] = useState("");
-        const [err, setErr] = useState("");
-        const [busy, setBusy] = useState(false);
-        const submit = async (e) => {
-          e.preventDefault();
-          if (!pw) return;
-          setBusy(true);
-          setErr("");
-          try {
-            await apiLogin(pw);
-            onLogin();
-          } catch {
-            setErr("Wrong password — try again! 🔒");
-          } finally {
-            setBusy(false);
-          }
-        };
+      function LoginScreen() {
         return (
           <div className="login-screen">
             <div className="login-card">
@@ -808,48 +804,41 @@
                   fontFamily: "'Fredoka One',cursive",
                   fontSize: "1rem",
                   color: "var(--ink-light)",
-                  marginBottom: 32,
+                  marginBottom: 40,
                 }}
               >
                 Little Scholar — Chinese Reading App
               </div>
-              <form onSubmit={submit}>
-                <label
-                  style={{
-                    display: "block",
-                    textAlign: "left",
-                    fontFamily: "'Fredoka One',cursive",
-                    fontSize: "0.85rem",
-                    color: "var(--ink-light)",
-                    marginBottom: 6,
-                  }}
-                >
-                  Password
-                </label>
-                <input
-                  className="login-input"
-                  type="password"
-                  placeholder="••••••••"
-                  value={pw}
-                  onChange={(e) => setPw(e.target.value)}
-                  autoFocus
-                />
-                <button className="login-btn" type="submit" disabled={busy}>
-                  {busy ? "Checking…" : "Enter 🏮"}
-                </button>
-              </form>
-              {err && (
-                <div
-                  style={{
-                    color: "var(--red)",
-                    fontSize: "0.85rem",
-                    marginTop: 12,
-                    fontFamily: "'Fredoka One',cursive",
-                  }}
-                >
-                  {err}
-                </div>
-              )}
+              <a href="/auth/google" className="google-btn">
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                  <path
+                    fill="#EA4335"
+                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+                  />
+                </svg>
+                Sign in with Google
+              </a>
+              <p
+                style={{
+                  marginTop: 20,
+                  fontSize: "0.75rem",
+                  color: "var(--ink-light)",
+                }}
+              >
+                Only authorised accounts can access this app
+              </p>
             </div>
           </div>
         );
@@ -857,9 +846,15 @@
 
       function Root() {
         const [authed, setAuthed] = useState(null);
+        const [user, setUser] = useState("");
+        const [name, setName] = useState("");
         useEffect(() => {
           apiCheckAuth()
-            .then((ok) => setAuthed(ok))
+            .then((d) => {
+              setAuthed(d.authenticated);
+              setUser(d.user || "");
+              setName(d.name || "");
+            })
             .catch(() => setAuthed(false));
         }, []);
         if (authed === null)
@@ -876,12 +871,22 @@
               🏮
             </div>
           );
-        if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
-        return <App onLogout={() => setAuthed(false)} />;
+        if (!authed) return <LoginScreen />;
+        return (
+          <App
+            user={user}
+            name={name}
+            onLogout={() => {
+              setAuthed(false);
+              setUser("");
+              setName("");
+            }}
+          />
+        );
       }
 
       // ── Main App ───────────────────────────────────────────────────────────────────
-      function App({ onLogout }) {
+      function App({ onLogout, user, name }) {
         const [screen, setScreen] = useState("home");
         const [parsedArticle, setParsedArticle] = useState(null);
         const [loading, setLoading] = useState(false);
@@ -2850,6 +2855,21 @@
                     )}
                   </button>
                 </div>
+                {name && (
+                  <span
+                    style={{
+                      fontFamily: "'Fredoka One',cursive",
+                      fontSize: "0.82rem",
+                      color: "var(--ink-light)",
+                      maxWidth: 140,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    👤 {name.split(" ")[0]}
+                  </span>
+                )}
                 <button
                   className="btn btn-outline btn-sm"
                   title="Logout"
@@ -2858,7 +2878,7 @@
                     onLogout();
                   }}
                 >
-                  🚪
+                  🚪 Logout
                 </button>
               </div>
             </div>
