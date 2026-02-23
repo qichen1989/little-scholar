@@ -196,7 +196,18 @@ VALID_KEYS = {"unknownChars", "masteredChars", "masteredCharData", "articleHisto
 def get_data():
     user = current_user()
     db   = get_db()
-    rows = db.execute("SELECT key, value FROM store WHERE user=?", (user,)).fetchall()
+
+    # If this user has no data yet but 'main' does, migrate it over now.
+    # This handles password-login → Google OAuth transition no matter when it happens.
+    if user and user != "main":
+        email_count = db.execute("SELECT COUNT(*) FROM store WHERE user=?", (user,)).fetchone()[0]
+        main_count  = db.execute("SELECT COUNT(*) FROM store WHERE user='main'").fetchone()[0]
+        if email_count == 0 and main_count > 0:
+            db.execute("UPDATE store SET user=? WHERE user='main'", (user,))
+            db.commit()
+            print(f"DB: migrated {main_count} rows from 'main' to '{user}'")
+
+    rows   = db.execute("SELECT key, value FROM store WHERE user=?", (user,)).fetchall()
     result = {r["key"]: json.loads(r["value"]) for r in rows if r["key"] in VALID_KEYS}
     for k in VALID_KEYS:
         if k not in result:
